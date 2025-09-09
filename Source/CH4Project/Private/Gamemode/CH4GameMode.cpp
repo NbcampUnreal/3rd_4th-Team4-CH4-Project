@@ -1,6 +1,6 @@
-#include "CH4GameMode.h"
-#include "CH4Character.h"
-#include "CH4PlayerController.h"
+#include "GameMode/CH4GameMode.h"
+#include "Character/CH4Character.h"
+#include "PlayerController/CH4PlayerController.h"
 
 ACH4GameMode::ACH4GameMode()
 {
