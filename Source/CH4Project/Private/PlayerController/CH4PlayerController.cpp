@@ -1,4 +1,4 @@
-#include "CH4PlayerController.h"
+#include "PlayerController/CH4PlayerController.h"
 #include "EnhancedInputSubsystems.h"
 
 ACH4PlayerController::ACH4PlayerController()
