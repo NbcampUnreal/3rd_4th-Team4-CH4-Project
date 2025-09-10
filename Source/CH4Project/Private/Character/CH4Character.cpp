@@ -1,13 +1,17 @@
 #include "Character/CH4Character.h"
+#include "Components/CapsuleComponent.h"
+#include "Animation/AnimInstance.h"
 #include "AnimInstance/CH4AnimInstance.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
-// #include "아이템.h"
+#include "Net/UnrealNetwork.h"
 
 ACH4Character::ACH4Character()
 {
 	PrimaryActorTick.bCanEverTick = true;
+
+	bReplicates = true;
 
 	SpringArmComp = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
 	SpringArmComp->SetupAttachment(RootComponent);
@@ -18,24 +22,23 @@ ACH4Character::ACH4Character()
 	CameraComp->SetupAttachment(SpringArmComp, USpringArmComponent::SocketName);
 	CameraComp->bUsePawnControlRotation = false;
 
-	// 기본 속도
 	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
 }
 
 void ACH4Character::BeginPlay()
 {
 	Super::BeginPlay();
-	
 }
 
 void ACH4Character::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	// 이동 속도 계산
-	Speed = GetVelocity().Size();
+	if (IsLocallyControlled())
+	{
+		Speed = GetVelocity().Size();
+	}
 
-	// 상태 업테이트
 	if (UCH4AnimInstance* AnimInst = Cast<UCH4AnimInstance>(GetMesh()->GetAnimInstance()))
 	{
 		AnimInst->bIsJumping = bIsJumping;
@@ -49,11 +52,8 @@ void ACH4Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
-	// 로컬 플레이어만 입력 허용하기
 	if (!IsLocallyControlled())
-	{
 		return;
-	}
 
 	// 이동
 	PlayerInputComponent->BindAxis("MoveForward", this, &ACH4Character::MoveForward);
@@ -70,18 +70,14 @@ void ACH4Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 	// 달리기
 	PlayerInputComponent->BindAction("Run", IE_Pressed, this, &ACH4Character::RunPressed);
 	PlayerInputComponent->BindAction("Run", IE_Released, this, &ACH4Character::RunReleased);
-
-	PlayerInputComponent->BindAction("UseItem", IE_Pressed, this, &ACH4Character::UseItemInput);
 }
 
-// 이동
 void ACH4Character::MoveForward(float Value)
 {
 	if (Controller && Value != 0.0f)
 	{
 		const FRotator Rotation = Controller->GetControlRotation();
 		const FRotator YawRotation(0, Rotation.Yaw, 0);
-
 		const FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
 		AddMovementInput(Direction, Value);
 	}
@@ -93,7 +89,6 @@ void ACH4Character::MoveRight(float Value)
 	{
 		const FRotator Rotation = Controller->GetControlRotation();
 		const FRotator YawRotation(0, Rotation.Yaw, 0);
-
 		const FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 		AddMovementInput(Direction, Value);
 	}
@@ -123,17 +118,11 @@ void ACH4Character::RunReleased()
 	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
 }
 
-// 아이템 사용
-void ACH4Character::UseItem(AActor* ItemActor)
+void ACH4Character::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
-	if (UCH4AnimInstance* AnimInst = Cast<UCH4AnimInstance>(GetMesh()->GetAnimInstance()))
-	{
-		AnimInst->bUsingItem = true;
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	}
-}
-
-void ACH4Character::UseItemInput()
-{
-	UseItem(nullptr); 
+	DOREPLIFETIME(ACH4Character, bIsJumping);
+	DOREPLIFETIME(ACH4Character, bIsRunning);
+	DOREPLIFETIME(ACH4Character, bUsingItem);
 }
