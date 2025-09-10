@@ -1,34 +1,34 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "CH4AICharacter.h"
+#include "CH4AIController.h"
+#include "GameFramework/CharacterMovementComponent.h"
 
-// Sets default values
 ACH4AICharacter::ACH4AICharacter()
 {
- 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
+	AIControllerClass = ACH4AIController::StaticClass();
+	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
+
+	UCharacterMovementComponent* Movement = GetCharacterMovement();
+	bUseControllerRotationYaw = false;
+	Movement->bUseControllerDesiredRotation = false;
+	Movement->MaxWalkSpeed = 300.0f;
+	Movement->bOrientRotationToMovement = true;
+	Movement->RotationRate = FRotator(0.0f, 540.0f, 0.0f);
 
 }
 
-// Called when the game starts or when spawned
 void ACH4AICharacter::BeginPlay()
 {
 	Super::BeginPlay();
 	
 }
 
-// Called every frame
-void ACH4AICharacter::Tick(float DeltaTime)
+void ACH4AICharacter::Arrest()
 {
-	Super::Tick(DeltaTime);
-
+	// 체포 후 AI 캐릭터 삭제
+	if (HasAuthority())
+	{
+	
+	Destroy();
+	}
 }
-
-// Called to bind functionality to input
-void ACH4AICharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
-{
-	Super::SetupPlayerInputComponent(PlayerInputComponent);
-
-}
-
+ 
