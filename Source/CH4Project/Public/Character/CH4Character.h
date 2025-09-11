@@ -7,6 +7,9 @@
 
 class USpringArmComponent;
 class UCameraComponent;
+class UInputMappingContext;
+class UInputAction;
+struct FInputActionValue;
 
 UCLASS()
 class CH4PROJECT_API ACH4Character : public ACharacter
@@ -20,18 +23,11 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	// 이동
-	void MoveForward(float Value);
-	void MoveRight(float Value);
-
-	// 점프
-	void JumpPressed();
-	void JumpReleased();
-
-	// 달리기
-	void RunPressed();
-	void RunReleased();
+	void Move(const FInputActionValue& Value);
+	void Look(const FInputActionValue& Value);
+	void Sprint(const FInputActionValue& Value);
 
 	// 애니메이션 관련
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Animation")
@@ -61,6 +57,22 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	UCameraComponent* CameraComp;
 
-private:
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputMappingContext* DefaultMappingContext;
+
+	// 이동
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputAction* MoveAction;
+
+	//시점 전환
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputAction* LookAction;
+
+	// 점프
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputAction* JumpAction;
+
+	// 달리기
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputAction* SprintAction;
 };

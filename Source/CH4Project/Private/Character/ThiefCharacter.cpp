@@ -1,99 +1,129 @@
 #include "Character/ThiefCharacter.h"
+#include "Character/CH4Character.h"
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/GameStateBase.h"
 
 AThiefCharacter::AThiefCharacter()
+    : Super() // 부모 생성자 호출
 {
-	bReplicates = true;
-	HeldItem = nullptr;
-	bUsingItem = false;
-
-	// 초기 체력 설정
-	CurrentHealth = MaxHealth;
+    bReplicates = true;
+    HeldItem = nullptr;
+    bUsingItem = false;
 }
 
 void AThiefCharacter::PickupItem(AActor* ItemActor)
 {
-	if (ItemActor)
-	{
-		HeldItem = ItemActor;
-	}
+    if (ItemActor)
+    {
+        HeldItem = ItemActor;
+    }
 }
 
 void AThiefCharacter::UseItemInput()
 {
-	if (HeldItem)
-	{
-		if (HasAuthority())
-		{
-			HandleUseItem(HeldItem);
-		}
-		else
-		{
-			ServerUseItem();
-		}
-	}
+    if (HeldItem)
+    {
+        if (HasAuthority())
+        {
+            HandleUseItem(HeldItem);
+        }
+        else
+        {
+            ServerUseItem();
+        }
+    }
 }
 
 void AThiefCharacter::ServerUseItem_Implementation()
 {
-	HandleUseItem(HeldItem);
-}
-
-void AThiefCharacter::MulticastUseItem_Implementation()
-{
-	// 효과(소리, 이펙트 등) 처리
+    HandleUseItem(HeldItem);
 }
 
 void AThiefCharacter::HandleUseItem(AActor* ItemActor)
 {
-	if (!ItemActor) return;
+    if (!ItemActor) return;
 
-	bUsingItem = true;
+    bUsingItem = true;
 
-	// 아이템 태그에 따라 효과 적용
-	if (ItemActor->ActorHasTag("SpeedBoostItem"))
-	{
-		GetCharacterMovement()->MaxWalkSpeed += 300.f;
-	}
-	else if (ItemActor->ActorHasTag("ClockItem"))
-	{
-		// 시계 아이템 효과 처리
-	}
-	else if (ItemActor->ActorHasTag("TrapItem"))
-	{
-		// 덫 아이템 효과 처리
-	}
+    if (ItemActor->ActorHasTag("SpeedBoostItem"))
+    {
+        // 원래 속도 저장
+        float OriginalSpeed = GetCharacterMovement()->MaxWalkSpeed;
 
-	HeldItem = nullptr;
-	ItemActor->Destroy();
+        // 속도 증가
+        GetCharacterMovement()->MaxWalkSpeed = OriginalSpeed + 300.f;
 
-	MulticastUseItem();
+        // 일정 시간 후 원래 속도로 되돌리기
+        FTimerHandle TimerHandle_ResetSpeed;
+        GetWorld()->GetTimerManager().SetTimer(
+            TimerHandle_ResetSpeed,
+            FTimerDelegate::CreateLambda([this, OriginalSpeed]()
+                {
+                    GetCharacterMovement()->MaxWalkSpeed = OriginalSpeed;
+                }),
+            5.0f, // 지속 시간 (임시 5초)
+            false
+        );
+        // 클라 전체 이펙트
+        MulticastUseSpeedBoost();
+    }
+    else if (ItemActor->ActorHasTag("TrapItem"))
+    {
+        if (TrapClass)
+        {
+            FActorSpawnParameters SpawnParams;
+            SpawnParams.Owner = this;
+            SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+            // 서버에서 트랩 스폰
+            GetWorld()->SpawnActor<AActor>(TrapClass, GetActorLocation(), GetActorRotation(), SpawnParams);
+
+            // 클라 전체에 효과
+            MulticastUseTrap();
+        }
+    }
+    else if (ItemActor->ActorHasTag("ClockItem"))
+    {
+        if (AGameStateBase* GS = GetWorld()->GetGameState())
+        {
+            // 게임 시간 처리
+        }
+
+        MulticastUseClock();
+    }
+
+    // 아이템 제거
+    ItemActor->Destroy();
+    HeldItem = nullptr;
+
+    //아이템 사용 해제(안넣으면 영원히 사용됨) 이팩트 재생을 위해 딜레이를 넣었는데 필요 없으면 bUsingItem = false; 만 남기면 됨 
+    GetWorld()->GetTimerManager().SetTimerForNextTick([this]()
+        {
+            bUsingItem = false;
+        });
 }
 
-// 체력 동기화
-void AThiefCharacter::OnRep_CurrentHealth()
+void AThiefCharacter::MulticastUseSpeedBoost_Implementation()
 {
-	// UI 업데이트 등
+    // 모든 클라에서 보여줄 이펙트/사운드
+    UE_LOG(LogTemp, Log, TEXT("Speed Boost Effect"));
 }
 
-// 서버에서 체력 감소 처리
-void AThiefCharacter::Server_TakeDamage_Implementation(float DamageAmount)
+void AThiefCharacter::MulticastUseTrap_Implementation()
 {
-	CurrentHealth = FMath::Clamp(CurrentHealth - DamageAmount, 0.0f, MaxHealth);
-
-	if (CurrentHealth <= 0.0f)
-	{
-		// 사망 처리
-		Destroy();
-	}
+    // 덫 설치 효과
+    UE_LOG(LogTemp, Log, TEXT("Trap Placed"));
 }
 
-// 네트워크 복제 설정
+void AThiefCharacter::MulticastUseClock_Implementation()
+{
+    // 시계 효과
+    UE_LOG(LogTemp, Log, TEXT("Clock Used Time Reduced."));
+}
+
 void AThiefCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
-	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-
-	DOREPLIFETIME(AThiefCharacter, bUsingItem);
-	DOREPLIFETIME(AThiefCharacter, CurrentHealth);
+    Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+    DOREPLIFETIME(AThiefCharacter, HeldItem);
 }

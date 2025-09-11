@@ -6,11 +6,12 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Net/UnrealNetwork.h"
+#include "EnhancedInputComponent.h"
+#include "EnhancedInputSubsystems.h"
 
 ACH4Character::ACH4Character()
 {
 	PrimaryActorTick.bCanEverTick = true;
-
 	bReplicates = true;
 
 	SpringArmComp = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
@@ -23,11 +24,26 @@ ACH4Character::ACH4Character()
 	CameraComp->bUsePawnControlRotation = false;
 
 	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
+
+	bUseControllerRotationYaw = false;                       // 컨트롤러 회전에 따라 회전하지 않음
+	GetCharacterMovement()->bOrientRotationToMovement = true; // 이동 방향으로 회전
+	GetCharacterMovement()->RotationRate = FRotator(0.f, 720.f, 0.f); // 회전 속도
 }
 
 void ACH4Character::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
+	{
+		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
+		{
+			if (DefaultMappingContext)
+			{
+				Subsystem->AddMappingContext(DefaultMappingContext, 0);
+			}
+		}
+	}
 }
 
 void ACH4Character::Tick(float DeltaTime)
@@ -37,6 +53,7 @@ void ACH4Character::Tick(float DeltaTime)
 	if (IsLocallyControlled())
 	{
 		Speed = GetVelocity().Size();
+		bIsJumping = GetCharacterMovement()->IsFalling();
 	}
 
 	if (UCH4AnimInstance* AnimInst = Cast<UCH4AnimInstance>(GetMesh()->GetAnimInstance()))
@@ -52,76 +69,66 @@ void ACH4Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
-	if (!IsLocallyControlled())
-		return;
-
-	// 이동
-	PlayerInputComponent->BindAxis("MoveForward", this, &ACH4Character::MoveForward);
-	PlayerInputComponent->BindAxis("MoveRight", this, &ACH4Character::MoveRight);
-
-	// 마우스 회전
-	PlayerInputComponent->BindAxis("Turn", this, &APawn::AddControllerYawInput);
-	PlayerInputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput);
-
-	// 점프
-	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACH4Character::JumpPressed);
-	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACH4Character::JumpReleased);
-
-	// 달리기
-	PlayerInputComponent->BindAction("Run", IE_Pressed, this, &ACH4Character::RunPressed);
-	PlayerInputComponent->BindAction("Run", IE_Released, this, &ACH4Character::RunReleased);
-}
-
-void ACH4Character::MoveForward(float Value)
-{
-	if (Controller && Value != 0.0f)
+	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
 	{
-		const FRotator Rotation = Controller->GetControlRotation();
-		const FRotator YawRotation(0, Rotation.Yaw, 0);
-		const FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
-		AddMovementInput(Direction, Value);
+		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ACH4Character::Move);
+		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ACH4Character::Look);
+
+		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
+		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
+
+		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Started, this, &ACH4Character::Sprint);
+		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Completed, this, &ACH4Character::Sprint);
 	}
 }
 
-void ACH4Character::MoveRight(float Value)
+void ACH4Character::Move(const FInputActionValue& Value)
 {
-	if (Controller && Value != 0.0f)
+	const FVector2D MovementVector = Value.Get<FVector2D>();
+
+	if (Controller != nullptr)
 	{
 		const FRotator Rotation = Controller->GetControlRotation();
 		const FRotator YawRotation(0, Rotation.Yaw, 0);
-		const FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
-		AddMovementInput(Direction, Value);
+
+		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+
+		AddMovementInput(ForwardDirection, MovementVector.Y);
+		AddMovementInput(RightDirection, MovementVector.X);
 	}
 }
 
-void ACH4Character::JumpPressed()
+void ACH4Character::Look(const FInputActionValue& Value)
 {
-	bIsJumping = true;
-	Jump();
+	const FVector2D LookAxisVector = Value.Get<FVector2D>();
+
+	if (Controller != nullptr)
+	{
+		AddControllerYawInput(LookAxisVector.X);
+		AddControllerPitchInput(LookAxisVector.Y);
+	}
 }
 
-void ACH4Character::JumpReleased()
+void ACH4Character::Sprint(const FInputActionValue& Value)
 {
-	bIsJumping = false;
-	StopJumping();
-}
-
-void ACH4Character::RunPressed()
-{
-	bIsRunning = true;
-	GetCharacterMovement()->MaxWalkSpeed = RunSpeed;
-}
-
-void ACH4Character::RunReleased()
-{
-	bIsRunning = false;
-	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
+	if (Value.Get<bool>())
+	{
+		// 달리기 키가 눌렸을 때
+		GetCharacterMovement()->MaxWalkSpeed = RunSpeed;
+		bIsRunning = true;
+	}
+	else
+	{
+		// 달리기 키에서 손을 뗏을 때
+		GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
+		bIsRunning = false;
+	}
 }
 
 void ACH4Character::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-
 	DOREPLIFETIME(ACH4Character, bIsJumping);
 	DOREPLIFETIME(ACH4Character, bIsRunning);
 	DOREPLIFETIME(ACH4Character, bUsingItem);
