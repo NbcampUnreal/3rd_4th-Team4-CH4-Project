@@ -4,7 +4,7 @@
 #include "SpawnVolume/PlayerSpawnVolume.h"
 
 
-FVector APlayerSpawnVolume::GetSpawnLocation(float Radius) const
+FVector APlayerSpawnVolume::GetSpawnLocation() const
 {
 	return SpawnArea->Bounds.Origin; // 항상 중앙 고정
 }

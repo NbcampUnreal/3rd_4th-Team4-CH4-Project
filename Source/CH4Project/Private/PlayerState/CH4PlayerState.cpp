@@ -3,17 +3,21 @@
 
 #include "PlayerState/CH4PlayerState.h"
 #include "Net/UnrealNetwork.h"
+
 ACH4PlayerState::ACH4PlayerState()
 {
-	PlayerRole = EPlayerRole::Unassigned ;// 초기값
-	CurrentArrests = 0;
+	PlayerRole = EPlayerRole::Unassigned ; // 초기값
+	RemainingArrests = 0;
 	MaxArrests = 0;
 }
 void ACH4PlayerState::SetPlayerRole(EPlayerRole NewRole)
 {
 	if (HasAuthority())
 	{
-		PlayerRole = NewRole;
+		if (PlayerRole != NewRole)
+		{
+			PlayerRole = NewRole;
+		}
 	}
 	else
 	{
@@ -22,8 +26,10 @@ void ACH4PlayerState::SetPlayerRole(EPlayerRole NewRole)
 }
 void ACH4PlayerState::ServerSetPlayerRole_Implementation(EPlayerRole NewRole)
 {
-	PlayerRole = NewRole;
-}
+	if (PlayerRole != NewRole)
+	{
+		PlayerRole = NewRole;
+	}}
 
 bool ACH4PlayerState::ServerSetPlayerRole_Validate(EPlayerRole NewRole)
 {
@@ -31,19 +37,25 @@ bool ACH4PlayerState::ServerSetPlayerRole_Validate(EPlayerRole NewRole)
 }
 
 
-void ACH4PlayerState::OnRep_PlayerRole()
+void ACH4PlayerState::OnRep_PlayerRole() //디버그 로그가 중첩되서 출력되는 현상 해결 로직
 {
-	// 클라이언트에서 역할이 변경될 때 UI/애니메이션 처리 가능
-	UE_LOG(LogTemp, Log, TEXT("OnRep_PlayerRole: 내 역할 %d"), (int32)PlayerRole);
-	// 예: RoleWidget->UpdateRole(PlayerRole);
+	if (APlayerController* PC = Cast<APlayerController>(GetOwner()))
+	{
+		if (PC->IsLocalController())
+		{
+			UE_LOG(LogTemp, Log, TEXT("OnRep_PlayerRole: 내 역할 %d"), (int32)PlayerRole);
+		}
+	}
+
+	// 클라이언트에서 UI/애니메이션 처리 가능
+	// RoleWidget->UpdateRole(PlayerRole);
 }
 
-void ACH4PlayerState::SetCurrentArrests(int32 NewCurrentArrests)
+void ACH4PlayerState::SetRemainingArrests(int32 NewRemainingArrests)
 {
 	if (HasAuthority())
 	{
-		CurrentArrests = NewCurrentArrests;
-		// 서버에서 값 변경 → 클라이언트에서 OnRep_CurrentArrests 호출
+		RemainingArrests = NewRemainingArrests;
 	}
 }
 
@@ -52,15 +64,15 @@ void ACH4PlayerState::SetMaxArrests(int32 NewMaxArrests)
 	if (HasAuthority())
 	{
 		MaxArrests = NewMaxArrests;
-		// 서버에서 값 변경 → 클라이언트에서 OnRep_MaxArrests 호출
+		RemainingArrests = MaxArrests; // 갱신될 때마다 리셋
 	}
 }
 
-void ACH4PlayerState::OnRep_CurrentArrests()
+void ACH4PlayerState::OnRep_RemainingArrests()
 {
-	UE_LOG(LogTemp, Log, TEXT("OnRep_CurrentArrests: 현재 체포 %d"), CurrentArrests);
+	UE_LOG(LogTemp, Log, TEXT("OnRep_RemainingArrests: 남은 체포 %d"), RemainingArrests);
 	// UI/위젯 즉시 갱신
-	// RoleWidget->UpdateCurrentArrests(CurrentArrests);
+	// RoleWidget->UpdateMaxArrests(RemainingArrests);
 }
 
 void ACH4PlayerState::OnRep_MaxArrests()
@@ -79,6 +91,20 @@ void ACH4PlayerState::ClientReceiveRole_Implementation(EPlayerRole NewRole)
 	// RoleWidget->UpdateRole(PlayerRole);
 }
 
+//캐릭터의 인벤토리 업데이트 파트.
+void ACH4PlayerState::OnRep_InventoryUpdated()
+{
+	// 클라이언트 UI 갱신
+}
+
+//서버 인벤토리에 아이템을 추가하는 과정
+void ACH4PlayerState::AddItemToInventory(FName ItemID)
+{
+	if (!HasAuthority()) return; // 서버만 권한
+	Inventory.Add(ItemID);
+
+	// Inventory 배열 RepNotify를 통해 클라이언트 UI 동기화
+}
 
 void ACH4PlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
@@ -88,6 +114,10 @@ void ACH4PlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutL
 	DOREPLIFETIME(ACH4PlayerState, PlayerRole);
 
 	// 체포 횟수 Replication
-	DOREPLIFETIME(ACH4PlayerState, CurrentArrests);
+	DOREPLIFETIME(ACH4PlayerState, RemainingArrests);
 	DOREPLIFETIME(ACH4PlayerState, MaxArrests);
+	
+	//인벤토리 관리 구조
+	DOREPLIFETIME(ACH4PlayerState, Inventory);
+
 }

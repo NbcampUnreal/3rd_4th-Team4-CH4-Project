@@ -13,7 +13,7 @@ ABaseSpawnVolume::ABaseSpawnVolume()
 	RootComponent = SpawnArea;
 }
 
-FVector ABaseSpawnVolume::GetSpawnLocation(float Radius) const
+FVector ABaseSpawnVolume::GetSpawnLocation() const
 {
 	return SpawnArea->Bounds.Origin; // 기본은 단순 중앙
 

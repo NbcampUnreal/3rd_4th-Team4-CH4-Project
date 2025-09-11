@@ -69,6 +69,7 @@ void ACH4GameStateBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 
 	DOREPLIFETIME(ACH4GameStateBase, MatchTypes);
 	DOREPLIFETIME(ACH4GameStateBase, RemainingThieves);
-	DOREPLIFETIME(ACH4GameStateBase, MatchTime); DOREPLIFETIME(ACH4GameStateBase,SpawnedAI);
+	DOREPLIFETIME(ACH4GameStateBase, MatchTime);
+	DOREPLIFETIME(ACH4GameStateBase, SpawnedAI);
 	DOREPLIFETIME(ACH4GameStateBase, MaxAISpawn);
 }
