@@ -17,6 +17,6 @@ class CH4PROJECT_API APlayerSpawnVolume : public ABaseSpawnVolume
 
 public:
 
-	virtual FVector GetSpawnLocation(float Radius = 0.f) const override;
+	virtual FVector GetSpawnLocation() const override;
 	
 };

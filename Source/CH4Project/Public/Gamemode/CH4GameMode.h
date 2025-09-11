@@ -7,6 +7,7 @@
 #include "Type/MatchTypes.h"
 #include "Kismet/GameplayStatics.h"
 #include "SpawnVolume/BaseSpawnVolume.h"
+#include "SpawnVolume/ItemSpawnVolume.h"
 #include "CH4GameMode.generated.h"
 
 
@@ -89,29 +90,51 @@ public:
 
 	FVector GetRandomSpawnLocation(float Radius);
 	*/
+
+	
+
+	
 	//캐릭터 스폰 로직 통합 및 개선 테스트 버전
 	void SpawnActors(TArray<TSubclassOf<APawn>> AIClasses, float AISpawnRadius);
 
 	
 	//실제 동작하는지 테스트 용 함수
 	void TestAssignRoles8Players();
+	
 
+	void SpawnItems();
+
+	void GivePlayerItem(APlayerController* Player, FName ItemID);
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spawning")
+	TArray<AItemSpawnVolume*> ItemSpawnVolumes;
 protected:
-	/*
-	//BP 게임모드에서 스폰할 AI BP 캐릭터를 에디터 상으로 선정해야함.
+	
+	//BP 게임모드에서 스폰할 각각의 캐릭터를 에디터 상으로 선정해야함.
 	UPROPERTY(EditDefaultsOnly, Category="Spawning")
 	TArray<TSubclassOf<APawn>> AIClassesToSpawn;
+	
+	UPROPERTY(EditDefaultsOnly, Category="Spawning|Player")
+	TSubclassOf<APawn> PolicePawnClass;
 
-	// AI 스폰 반경 (에디터에서 조정 가능)
-	UPROPERTY(EditDefaultsOnly, Category="Spawning")
+	UPROPERTY(EditDefaultsOnly, Category="Spawning|Player")
+	TSubclassOf<APawn> ThiefPawnClass;
+	//
+
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI")
 	float AISpawnRadius = 500.f;
-	*/
+	
+	//모든 플레이어가 빙의한 후, 실제 게임 플레이 카운트다운 타이머
+	FTimerHandle UnlockPlayerInputTimerHandle;
+
 private:
 	/** 게임 시작 타이머 */
 	FTimerHandle GameStartTimerHandle;
 
 	/** 매치 타이머 */
 	FTimerHandle MatchTimerHandle;
+
 
 	/** 레벨에 배치된 스폰 볼륨 */
 	UPROPERTY()

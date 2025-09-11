@@ -36,12 +36,8 @@ public:
 	int32 SpawnedAI;
 
 	/** 최대 AI 생성 수 */
-	UPROPERTY(Replicated)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Replicated, Category="AI")
 	int32 MaxAISpawn;
-
-	/** 전체 플레이어 수 */
-	UPROPERTY(Replicated)
-	int32 TotalPlayers; //반드시 로비 파트에서 플레이어 총합을 계산해서 이 변수에 저장할 것.*
 
 	/** 매치 상태 변경 */
 	void SetMatchState(EMatchTypes NewMatchType);

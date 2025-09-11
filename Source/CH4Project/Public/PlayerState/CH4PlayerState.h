@@ -24,18 +24,18 @@ public:
 	UPROPERTY(ReplicatedUsing = OnRep_PlayerRole, BlueprintReadOnly)
 	EPlayerRole PlayerRole;
 
-	UPROPERTY(ReplicatedUsing = OnRep_CurrentArrests, BlueprintReadOnly)
-	int32 CurrentArrests;
+	UPROPERTY(ReplicatedUsing=OnRep_RemainingArrests)
+	int32 RemainingArrests;
 
 	/** 최대 체포 횟수 */
 	UPROPERTY(ReplicatedUsing = OnRep_MaxArrests, BlueprintReadOnly)
 	int32 MaxArrests;
 
-	void SetCurrentArrests(int32 NewCurrentArrests);
+    void SetRemainingArrests(int32 NewRemainingArrests);
 	void SetMaxArrests(int32 NewMaxArrests);
 	
 	UFUNCTION()
-	void OnRep_CurrentArrests();
+	void OnRep_RemainingArrests();
 
 	UFUNCTION()
 	void OnRep_MaxArrests();
@@ -61,6 +61,17 @@ public:
 	UFUNCTION(Client, Reliable)
 	void ClientReceiveRole(EPlayerRole NewRole);
 	void ClientReceiveRole_Implementation(EPlayerRole NewRole);
+
+	//플레이어 스테이트에서 인벤토리 관리 : 게임 모드에서 온전히 관리하는 쪽이 안전함.
+	//따라서 핵심은 게임모드에서 구현 후, 플레이어스테이트, 혹은 플레이어 컨트롤러에서 관리 가능하도록 확장성을 확보.
+	UPROPERTY(ReplicatedUsing=OnRep_InventoryUpdated, BlueprintReadOnly)
+	TArray<FName> Inventory;
+
+	void AddItemToInventory(FName ItemID);
+
+	
+	UFUNCTION()
+	void OnRep_InventoryUpdated();
 
 protected:
 	

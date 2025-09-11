@@ -2,12 +2,15 @@
 
 
 #include "SpawnVolume/AISpawnVolume.h"
-
+#include "Kismet/KismetMathLibrary.h"
 
 
 FVector AAISpawnVolume::GetSpawnLocation() const
 {
 	if (!SpawnArea) return FVector::ZeroVector;
 
-	return SpawnArea->Bounds.Origin;
+	FVector Origin = SpawnArea->Bounds.Origin;
+	FVector Extent = SpawnArea->Bounds.BoxExtent;
+
+	return UKismetMathLibrary::RandomPointInBoundingBox(Origin, Extent);
 }

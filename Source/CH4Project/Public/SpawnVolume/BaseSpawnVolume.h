@@ -22,5 +22,5 @@ protected:
 	UBoxComponent* SpawnArea;
 
 public:
-	virtual FVector GetSpawnLocation(float Radius = 0.f) const;
+	virtual FVector GetSpawnLocation() const;
 };
