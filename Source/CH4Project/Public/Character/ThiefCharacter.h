@@ -13,16 +13,41 @@ public:
     AThiefCharacter();
 
     // 아이템 줍기
+    UFUNCTION(BlueprintCallable)
     void PickupItem(AActor* ItemActor);
 
     // 아이템 사용 입력
-    UFUNCTION()
+    UFUNCTION(BlueprintCallable)
     void UseItemInput();
 
     // 서버에서 아이템 사용 처리
     UFUNCTION(Server, Reliable)
     void ServerUseItem();
 
+    // 경찰에게 잡혔을 때 (서버에서만 실행)
+    UFUNCTION(Server, Reliable)
+    void ServerOnCaughtByPolice();
+
+    // 시계 아이템 사용시 (모든 플레이어 HUD 갱신)
+    UFUNCTION(NetMulticast, Reliable)
+    void MulticastUseClock();
+
+    UFUNCTION(BlueprintImplementableEvent)
+    void OnClockEffect();
+
+    // Trap에 걸렸을 때 UI 표시
+    UFUNCTION(Client, Reliable)
+    void ClientOnTrapped();
+
+    UFUNCTION(BlueprintImplementableEvent)
+    void OnTrapEffect();
+
+    UFUNCTION(NetMulticast, Reliable)
+    void MulticastUseTrap();
+
+    // 이속 아이템 사용시 UI 표시
+    UFUNCTION(Client, Reliable)
+    void ClientShowSpeedBoostUI();
 protected:
     // 실제 아이템 사용 처리 (서버에서만 실행)
     void HandleUseItem(AActor* ItemActor);
@@ -31,11 +56,9 @@ protected:
     UFUNCTION(NetMulticast, Reliable)
     void MulticastUseSpeedBoost();
 
-    UFUNCTION(NetMulticast, Reliable)
-    void MulticastUseTrap();
+    UFUNCTION(BlueprintImplementableEvent)
+    void OnSpeedBoostEffect();
 
-    UFUNCTION(NetMulticast, Reliable)
-    void MulticastUseClock();
 
     // 현재 가지고 있는 아이템
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Replicated)
