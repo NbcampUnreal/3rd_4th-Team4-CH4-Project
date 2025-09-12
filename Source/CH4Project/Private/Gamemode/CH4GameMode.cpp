@@ -35,13 +35,14 @@ void ACH4GameMode::BeginPlay()
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseSpawnVolume::StaticClass(), SpawnVolumes);
 
 
-	//AssignRoles();
-	//역할 배정 및 AI, 플레이어 스폰 과정을 함수 하나로 통합 호출
-	//스폰이 끝날 때까지 플레이어 행동을 멈춘 후, 스폰 완료 후 빙의 시키는 구조 통합
+
 	
-	
+	//GetWorldTimerManager().SetTimer(GameStartTimerHandle, this, &ACH4GameMode::AssignRoles, 1.f, false);
+
 
 	GetWorldTimerManager().SetTimer(GameStartTimerHandle, this, &ACH4GameMode::TestAssignRoles8Players, 5.f, false);
+
+	StartItemSpawnTimer();
 
 }
 
@@ -234,7 +235,7 @@ void ACH4GameMode::HandleGameOver()
 		}
 		*/
 	}
-	
+	ClearItems();
 	GetWorldTimerManager().ClearTimer(MatchTimerHandle);
 	UE_LOG(LogTemp, Warning, TEXT("게임 오버 처리 완료"));
 
@@ -451,6 +452,10 @@ void ACH4GameMode::SpawnActors(TArray<TSubclassOf<APawn>> AIClasses, float InAIS
 		{
 			PlayerSpawnVolumes.Add(PSV);
 		}
+		else if (AItemSpawnVolume* ISV = Cast<AItemSpawnVolume>(Actor))
+		{
+			ItemSpawnVolumes.Add(ISV);
+		}
 	}
 
 	ACH4GameStateBase* GS = GetGameState<ACH4GameStateBase>();
@@ -610,34 +615,8 @@ void ACH4GameMode::TestAssignRoles8Players()
 	}
 }
 
-//마리오카트처럼 랜덤 아이템 스폰 방식
-void ACH4GameMode::SpawnItems()
-{
-	if (!HasAuthority()) return;
-
-	for (AItemSpawnVolume* Volume : ItemSpawnVolumes)
-	{
-		if (!Volume || Volume->ItemClasses.Num() == 0) continue;
-
-		// 랜덤 아이템 선택
-		int32 Index = FMath::RandRange(0, Volume->ItemClasses.Num() - 1);
-		TSubclassOf<AActor> ItemClass = Volume->ItemClasses[Index];
-		FVector SpawnLocation = Volume->GetSpawnLocation();
-
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-
-		AActor* NewItem = GetWorld()->SpawnActor<AActor>(ItemClass, SpawnLocation, FRotator::ZeroRotator, SpawnParams);
-		if (NewItem)
-		{
-			NewItem->SetReplicates(true);
-		}
-	}
-}
-
-
 // 플레이어가 아이템 박스 겹쳤을 때 서버에서 처리 : 마리오카트처럼, 무작위 아이템
-// 추후 플레이어 컨트롤러로 확정될 시 
+// 추후 플레이어 컨트롤러로 확정될 시 수정 필요
 void ACH4GameMode::GivePlayerItem(APlayerController* Player, FName ItemID)
 {
 	// 서버 권한 확인
@@ -662,3 +641,154 @@ void ACH4GameMode::GivePlayerItem(APlayerController* Player, FName ItemID)
 		UE_LOG(LogTemp, Warning, TEXT("GivePlayerItem: PlayerState를 가져오지 못했습니다."));
 	}
 }
+
+//마리오카트처럼 랜덤 아이템 스폰 방식
+//서버 내에서만 관리할 스폰 로직으로, 게임 스테이트, 플레이어 스테이트에서 관리하지 않음.
+//1분마다 기존 스폰된 아이템 박스를 삭제하고, 새로운 위치에 아이템 박스를 스폰하는 시스템.
+
+
+void ACH4GameMode::SpawnItems()
+{
+	if (!HasAuthority()) return;
+
+	// 기존 아이템 삭제
+	ClearItems();
+
+	if (ItemSpawnVolumes.Num() == 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SpawnItems: ItemSpawnVolumes가 없습니다."));
+		return;
+	}
+
+	int32 ItemsToSpawn = MaxItemCount;
+
+	for (int32 i = 0; i < ItemsToSpawn; ++i)
+	{
+		// 랜덤 볼륨 선택
+		int32 VolumeIndex = FMath::RandRange(0, ItemSpawnVolumes.Num() - 1);
+		AItemSpawnVolume* Volume = ItemSpawnVolumes[VolumeIndex];
+		if (!Volume || Volume->ItemClasses.Num() == 0) continue;
+
+		// 랜덤 아이템 선택
+		int32 ClassIndex = FMath::RandRange(0, Volume->ItemClasses.Num() - 1);
+		TSubclassOf<AActor> ItemClass = Volume->ItemClasses[ClassIndex];
+
+		FVector SpawnLocation = Volume->GetSpawnLocation();
+
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+		AActor* NewItem = GetWorld()->SpawnActor<AActor>(ItemClass, SpawnLocation, FRotator::ZeroRotator, SpawnParams);
+		if (NewItem)
+		{
+			NewItem->SetReplicates(true);
+			SpawnedItems.Add(NewItem);
+			CurrentItemCount++;
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("아이템 스폰 완료: %d/%d"), CurrentItemCount, MaxItemCount);
+}
+
+/*
+//네비매쉬가 존재할 경우만 아이템을 스폰하는 예시 로직.
+void ACH4GameMode::SpawnItems()
+{
+	if (!HasAuthority()) return;
+
+	// 기존 아이템 삭제
+	ClearItems();
+
+	if (ItemSpawnVolumes.Num() == 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SpawnItems: ItemSpawnVolumes가 없습니다."));
+		return;
+	}
+
+	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+	if (!NavSys)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SpawnItems: NavigationSystem 없음"));
+		return;
+	}
+
+	int32 ItemsToSpawn = MaxItemCount;
+
+	for (int32 i = 0; i < ItemsToSpawn; ++i)
+	{
+		// 랜덤 볼륨 선택
+		int32 VolumeIndex = FMath::RandRange(0, ItemSpawnVolumes.Num() - 1);
+		AItemSpawnVolume* Volume = ItemSpawnVolumes[VolumeIndex];
+		if (!Volume || Volume->ItemClasses.Num() == 0) continue;
+
+		// 랜덤 아이템 선택
+		int32 ClassIndex = FMath::RandRange(0, Volume->ItemClasses.Num() - 1);
+		TSubclassOf<AActor> ItemClass = Volume->ItemClasses[ClassIndex];
+
+		// 네비게이션 내 랜덤 포인트
+		FVector DesiredLocation = Volume->GetSpawnLocation();
+		FNavLocation NavLocation;
+		bool bFoundNavLocation = NavSys->GetRandomPointInNavigableRadius(DesiredLocation, 200.f, NavLocation);
+
+		if (!bFoundNavLocation)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("SpawnItems: 네비 포인트를 찾지 못함"));
+			continue;
+		}
+
+		// 스폰
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+		AActor* NewItem = GetWorld()->SpawnActor<AActor>(
+			ItemClass,
+			NavLocation.Location,
+			FRotator::ZeroRotator,
+			SpawnParams
+		);
+
+		if (NewItem)
+		{
+			NewItem->SetReplicates(true);
+			SpawnedItems.Add(NewItem);
+			CurrentItemCount++;
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("아이템 스폰 완료: %d/%d"), CurrentItemCount, MaxItemCount);
+}
+
+ */
+
+
+//1분마다 아이템 삭제 후, 리스폰하는 구조.
+void ACH4GameMode::StartItemSpawnTimer()
+{
+	if (!HasAuthority()) return; // 서버 전용
+
+	// 타이머 설정
+	GetWorldTimerManager().SetTimer(
+		ItemSpawnTimerHandle,
+		this,
+		&ACH4GameMode::SpawnItems,
+		ItemSpawnInterval,
+		true // 반복
+	);
+
+	// 처음 게임 시작 시 한 번 스폰
+	SpawnItems();
+}
+
+void ACH4GameMode::ClearItems()
+{
+	for (AActor* Item : SpawnedItems)
+	{
+		if (Item)
+		{
+			Item->Destroy();
+		}
+	}
+	SpawnedItems.Empty();
+	CurrentItemCount = 0;
+}
+

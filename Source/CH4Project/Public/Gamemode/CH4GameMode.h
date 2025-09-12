@@ -90,8 +90,8 @@ public:
 
 	FVector GetRandomSpawnLocation(float Radius);
 	*/
-
 	
+
 
 	
 	//캐릭터 스폰 로직 통합 및 개선 테스트 버전
@@ -102,7 +102,7 @@ public:
 	void TestAssignRoles8Players();
 	
 
-	void SpawnItems();
+
 
 	void GivePlayerItem(APlayerController* Player, FName ItemID);
 	
@@ -142,5 +142,35 @@ private:
 
 	/** 도전 횟수 체크 */
 	void CheckArrestLimit(ACH4PlayerState* PolicePS);
+
+	//아이템 스폰 관리용 프라이빗
+protected:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Item Spawning")
+	int32 MaxItemCount = 20;
+
+	// 현재 스폰된 아이템 수 (서버 전용)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Item Spawning")
+	int32 CurrentItemCount = 0;
+
+	// 주기적 아이템 스폰 타이머
+	FTimerHandle ItemSpawnTimerHandle;
+
+	// 주기적 스폰 간격 (초)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Item Spawning")
+	float ItemSpawnInterval = 60.f;
+
+	// 맵에 스폰된 아이템 액터들
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Item Spawning")
+	TArray<AActor*> SpawnedItems;
+
+	// 기존 아이템 삭제
+	void ClearItems();
+
+	//아이템 스폰 로직
+	void SpawnItems();
+
+	//시작 시 호출하는 아이템 스폰 타이머
+	void StartItemSpawnTimer();
+	
 };
 
