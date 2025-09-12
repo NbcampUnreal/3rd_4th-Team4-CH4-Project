@@ -1,6 +1,9 @@
 #include "Character/ThiefCharacter.h"
 #include "Character/CH4Character.h"
 #include "Net/UnrealNetwork.h"
+#include "Kismet/GameplayStatics.h"
+#include "GameMode/CH4GameMode.h"
+#include "GameState/CH4GameStateBase.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/GameStateBase.h"
 
@@ -97,7 +100,7 @@ void AThiefCharacter::HandleUseItem(AActor* ItemActor)
     ItemActor->Destroy();
     HeldItem = nullptr;
 
-    //아이템 사용 해제(안넣으면 영원히 사용됨) 이팩트 재생을 위해 딜레이를 넣었는데 필요 없으면 bUsingItem = false; 만 남기면 됨 
+    //아이템 효과 해제(안넣으면 영원히 사용됨) 이팩트 재생을 위해 딜레이를 넣었는데 필요 없으면 bUsingItem = false; 만 남기면 됨 
     GetWorld()->GetTimerManager().SetTimerForNextTick([this]()
         {
             bUsingItem = false;
@@ -107,18 +110,22 @@ void AThiefCharacter::HandleUseItem(AActor* ItemActor)
 void AThiefCharacter::MulticastUseSpeedBoost_Implementation()
 {
     // 모든 클라에서 보여줄 이펙트/사운드
+    OnSpeedBoostEffect();
+
     UE_LOG(LogTemp, Log, TEXT("Speed Boost Effect"));
 }
 
 void AThiefCharacter::MulticastUseTrap_Implementation()
 {
     // 덫 설치 효과
+    OnTrapEffect();
     UE_LOG(LogTemp, Log, TEXT("Trap Placed"));
 }
 
 void AThiefCharacter::MulticastUseClock_Implementation()
 {
     // 시계 효과
+    OnClockEffect();
     UE_LOG(LogTemp, Log, TEXT("Clock Used Time Reduced."));
 }
 
@@ -127,3 +134,26 @@ void AThiefCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutL
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
     DOREPLIFETIME(AThiefCharacter, HeldItem);
 }
+
+// 경찰에게 잡혔을 때
+void AThiefCharacter::ServerOnCaughtByPolice_Implementation()
+{
+    // GameMode 가져오기
+    if (ACH4GameMode* GM = Cast<ACH4GameMode>(UGameplayStatics::GetGameMode(this)))
+    {
+    }
+}
+
+
+// Trap에 걸렸을 때 UI 표시
+void AThiefCharacter::ClientOnTrapped_Implementation()
+{
+
+}
+
+// 이속 아이템 사용 UI 표시
+void AThiefCharacter::ClientShowSpeedBoostUI_Implementation()
+{
+   
+}
+
