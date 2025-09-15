@@ -27,7 +27,7 @@ void ACH4PlayerController::BeginPlay()
 		}
 	}
 
-	// HUD À§Á¬ »ý¼º ¹× Ç¥½Ã
+	// HUD ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ Ç¥ï¿½ï¿½
 	if (HUDWidgetClass)
 	{
 		UUserWidget* HUDWidget = CreateWidget<UUserWidget>(this, HUDWidgetClass);

@@ -100,7 +100,9 @@ public:
 	
 	//실제 동작하는지 테스트 용 함수
 	void TestAssignRoles8Players();
+
 	
+	void CheckControllersAndSpawn(const TArray<APlayerState*>& PlayerStates);
 
 
 
@@ -127,7 +129,7 @@ protected:
 	
 	//모든 플레이어가 빙의한 후, 실제 게임 플레이 카운트다운 타이머
 	FTimerHandle UnlockPlayerInputTimerHandle;
-
+	
 private:
 	/** 게임 시작 타이머 */
 	FTimerHandle GameStartTimerHandle;
@@ -143,6 +145,7 @@ private:
 	/** 도전 횟수 체크 */
 	void CheckArrestLimit(ACH4PlayerState* PolicePS);
 
+	
 	//아이템 스폰 관리용 프라이빗
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Item Spawning")
@@ -171,6 +174,7 @@ protected:
 
 	//시작 시 호출하는 아이템 스폰 타이머
 	void StartItemSpawnTimer();
+	
 	
 };
 
