@@ -17,3 +17,4 @@ FVector AItemSpawnVolume::GetSpawnLocation() const
 
 	return Origin + FVector(RandX, RandY, RandZ);
 }
+

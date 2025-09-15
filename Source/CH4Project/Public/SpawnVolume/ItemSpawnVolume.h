@@ -17,6 +17,7 @@ class CH4PROJECT_API AItemSpawnVolume : public ABaseSpawnVolume
 	
 public:
 	// 스폰할 아이템 클래스 배열
+	//블루프린트에서 미리 작성해둬야할 필요 있음.
 	UPROPERTY(EditAnywhere, Category="Spawn")
 	TArray<TSubclassOf<AActor>> ItemClasses;
 
