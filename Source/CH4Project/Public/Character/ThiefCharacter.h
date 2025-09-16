@@ -12,53 +12,41 @@ class CH4PROJECT_API AThiefCharacter : public ACH4Character
 public:
     AThiefCharacter();
 
+    // 아이템 사용 입력
+    virtual void UseItemInput() override;
+    void ServerUseItem_Implementation();
+
     // 아이템 줍기
     UFUNCTION(BlueprintCallable)
     void PickupItem(AActor* ItemActor);
-
-    // 아이템 사용 입력
-    UFUNCTION(BlueprintCallable)
-    void UseItemInput();
-
-    // 서버에서 아이템 사용 처리
-    UFUNCTION(Server, Reliable)
-    void ServerUseItem();
 
     // 경찰에게 잡혔을 때 (서버에서만 실행)
     UFUNCTION(Server, Reliable)
     void ServerOnCaughtByPolice();
 
-    // 시계 아이템 사용시 (모든 플레이어 HUD 갱신)
+    // 아이템 효과를 모든 클라이언트에 복제
     UFUNCTION(NetMulticast, Reliable)
     void MulticastUseClock();
-
-    UFUNCTION(BlueprintImplementableEvent)
-    void OnClockEffect();
-
-    // Trap에 걸렸을 때 UI 표시
-    UFUNCTION(Client, Reliable)
-    void ClientOnTrapped();
-
-    UFUNCTION(BlueprintImplementableEvent)
-    void OnTrapEffect();
 
     UFUNCTION(NetMulticast, Reliable)
     void MulticastUseTrap();
 
-    // 이속 아이템 사용시 UI 표시
+    UFUNCTION(NetMulticast, Reliable)
+    void MulticastUseSpeedBoost();
+
+    // HUD 및 UI를 위한 클라이언트 전용 함수
+    UFUNCTION(Client, Reliable)
+    void ClientOnTrapped();
+
     UFUNCTION(Client, Reliable)
     void ClientShowSpeedBoostUI();
+
+
 protected:
     // 실제 아이템 사용 처리 (서버에서만 실행)
     void HandleUseItem(AActor* ItemActor);
 
-    // 아이템 사용 효과를 모든 클라이언트에 알리기
-    UFUNCTION(NetMulticast, Reliable)
-    void MulticastUseSpeedBoost();
-
-    UFUNCTION(BlueprintImplementableEvent)
-    void OnSpeedBoostEffect();
-
+    void BeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
     // 현재 가지고 있는 아이템
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Replicated)
@@ -70,4 +58,17 @@ protected:
 
     // 복제할 변수를 등록
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-};
+
+    // 블루프린트에서 구현하는 이벤트들
+    UFUNCTION(BlueprintImplementableEvent)
+    void OnClockEffect();
+
+    UFUNCTION(BlueprintImplementableEvent)
+    void OnTrapEffect();
+
+    UFUNCTION(BlueprintImplementableEvent)
+    void OnSpeedBoostEffect();
+
+    UFUNCTION(BlueprintImplementableEvent, Category = "Item|UI")
+    void ShowSpeedBoostUI(); // 소유자 HUD에만 보여줄 UI
+    };

@@ -6,6 +6,7 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Net/UnrealNetwork.h"
+#include "InputAction.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 
@@ -14,6 +15,19 @@ ACH4Character::ACH4Character()
 	PrimaryActorTick.bCanEverTick = true;
 	bReplicates = true;
 
+	// 변수 초기화
+	DefaultMappingContext = nullptr;
+	JumpAction = nullptr;
+	LookAction = nullptr;
+	MoveAction = nullptr;
+	SprintAction = nullptr;
+	UseItemAction = nullptr;
+	Speed = 0.f;
+	bIsJumping = false;
+	bIsRunning = false;
+	bUsingItem = false;
+
+	// 카메라 컴포넌트 생성 및 연결
 	SpringArmComp = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
 	SpringArmComp->SetupAttachment(RootComponent);
 	SpringArmComp->TargetArmLength = 300.f;
@@ -23,8 +37,8 @@ ACH4Character::ACH4Character()
 	CameraComp->SetupAttachment(SpringArmComp, USpringArmComponent::SocketName);
 	CameraComp->bUsePawnControlRotation = false;
 
+	// 캐릭터 이동 설정
 	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
-
 	bUseControllerRotationYaw = false;                       // 컨트롤러 회전에 따라 회전하지 않음
 	GetCharacterMovement()->bOrientRotationToMovement = true; // 이동 방향으로 회전
 	GetCharacterMovement()->RotationRate = FRotator(0.f, 720.f, 0.f); // 회전 속도
@@ -50,12 +64,14 @@ void ACH4Character::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	// 클라이언트에서만 이동 변수 업데이트
 	if (IsLocallyControlled())
 	{
 		Speed = GetVelocity().Size();
 		bIsJumping = GetCharacterMovement()->IsFalling();
 	}
 
+	// 애니메이션 인스턴스에 복제된 변수 및 로컬 변수 전달
 	if (UCH4AnimInstance* AnimInst = Cast<UCH4AnimInstance>(GetMesh()->GetAnimInstance()))
 	{
 		AnimInst->bIsJumping = bIsJumping;
@@ -79,6 +95,8 @@ void ACH4Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 
 		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Started, this, &ACH4Character::Sprint);
 		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Completed, this, &ACH4Character::Sprint);
+
+		EnhancedInputComponent->BindAction(UseItemAction, ETriggerEvent::Started, this, &ACH4Character::UseItemInput);
 	}
 }
 
@@ -94,8 +112,8 @@ void ACH4Character::Move(const FInputActionValue& Value)
 		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
 		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 
-		AddMovementInput(ForwardDirection, MovementVector.Y);
-		AddMovementInput(RightDirection, MovementVector.X);
+		AddMovementInput(ForwardDirection, MovementVector.X);
+		AddMovementInput(RightDirection, MovementVector.Y);
 	}
 }
 
@@ -124,6 +142,13 @@ void ACH4Character::Sprint(const FInputActionValue& Value)
 		GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
 		bIsRunning = false;
 	}
+}
+void ACH4Character::UseItemInput()
+{
+}
+
+void ACH4Character::ServerUseItem_Implementation()
+{
 }
 
 void ACH4Character::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
