@@ -6,6 +6,7 @@
 
 class UInputMappingContext;
 class UInputAction;
+class UCH4UserWidget;
 
 UCLASS()
 class CH4PROJECT_API ACH4PlayerController : public APlayerController
@@ -28,6 +29,8 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
 	TSubclassOf<UUserWidget> HUDWidgetClass;
+	UPROPERTY()
+	UCH4UserWidget* MyHUDWidget;
 protected:
 	virtual void BeginPlay() override;
 };
