@@ -10,4 +10,6 @@ class CH4PROJECT_API ACH4ChatPlayerState : public APlayerState
 {
 	GENERATED_BODY()
 	
+public:
+	ACH4ChatPlayerState();
 };

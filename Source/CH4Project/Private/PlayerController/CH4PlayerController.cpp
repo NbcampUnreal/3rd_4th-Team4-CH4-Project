@@ -1,6 +1,7 @@
 #include "PlayerController/CH4PlayerController.h"
 #include "EnhancedInputSubsystems.h"
 #include "Blueprint/UserWidget.h"
+#include "IngameUI/CH4UserWidget.h"
 
 ACH4PlayerController::ACH4PlayerController()
 	: InputMappingContext(nullptr),
@@ -27,13 +28,13 @@ void ACH4PlayerController::BeginPlay()
 		}
 	}
 
-	// HUD ���� ���� �� ǥ��
 	if (HUDWidgetClass)
 	{
 		UUserWidget* HUDWidget = CreateWidget<UUserWidget>(this, HUDWidgetClass);
 		if (HUDWidget)
 		{
 			HUDWidget->AddToViewport();
+			MyHUDWidget = Cast<UCH4UserWidget>(HUDWidget); // HUDWidget에 UpdateMatchTime 함수 정의
 		}
 	}
 }

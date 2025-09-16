@@ -36,7 +36,7 @@ void ACH4GameMode::BeginPlay()
 
 
 	
-	GetWorldTimerManager().SetTimer(GameStartTimerHandle, this, &ACH4GameMode::AssignRoles, 10.f, false);
+	GetWorldTimerManager().SetTimer(GameStartTimerHandle, this, &ACH4GameMode::AssignRoles, 3.f, false);
 	//추후 딜레이 수정 후 실제 플레이어들이 포함되는 테스트가 필요.
 	//로비 -> 게임레벨 구조라면 기본 플레이어 컨트롤러가 이미 서버에서 관리 중이기 때문에 완성 후 딜레이를 줄이는 것은 큰 문제는 없을 것으로 추정됨.
 	//Only Local Player Controllers can be assigned to widgets. BP_CH4PlayerController_C_0 is not a Local Player Controller. 이런 에러 문구가 뜨며, 추후 플레이어 컨트롤러에서
