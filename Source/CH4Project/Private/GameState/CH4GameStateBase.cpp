@@ -1,6 +1,9 @@
 #include "GameState/CH4GameStateBase.h"
 #include "Net/UnrealNetwork.h"
 #include "Gamemode/CH4GameMode.h"
+#include "PlayerController/CH4PlayerController.h"
+#include "IngameUI/CH4UserWidget.h"
+
 //위젯 인클루드 필요
 
 ACH4GameStateBase::ACH4GameStateBase()
@@ -29,10 +32,10 @@ void ACH4GameStateBase::OnRep_MatchTime()
 	// 클라이언트에서 매치 시간 변경 시 호출 아래는 디버깅 로그로, 위젯과 연동 필요.
 	UE_LOG(LogTemp, Log, TEXT("남은 매치 시간: %.0f초"), MatchTime);
 	// HUD 업데이트 가능
-	/* if (MyHUDWidget) 위젯명 수정 필요
-	{ MyHUDWidget->UpdateMatchTime(MatchTime);
-
-	}*/
+	if (ACH4GameMode* GM = GetWorld()->GetAuthGameMode<ACH4GameMode>())
+	{
+		GM->UpdateMatchTime();
+	}
 }
 void ACH4GameStateBase::OnRep_RemainingPolice()
 {
