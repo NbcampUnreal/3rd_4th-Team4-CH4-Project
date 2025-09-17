@@ -9,7 +9,6 @@
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
 			"AdditionalDependencies": [
-         Feature/Item
 				"CoreUObject"
 			]
 		}
