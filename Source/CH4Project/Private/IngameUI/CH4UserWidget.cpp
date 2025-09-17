@@ -3,6 +3,13 @@
 
 void UCH4UserWidget::UpdateMatchTime(float NewTime)
 {
-	// UI 텍스트에 남은 시간을 표시
-	TimeText->SetText(FText::AsNumber(FMath::RoundToInt(NewTime)));
+	TimeText->SetText(FText::AsNumber(NewTime));
+}
+void UCH4UserWidget::UpdateRemainingThieves(int32 RemainingThieves)
+{
+	ThievesText->SetText(FText::AsNumber(RemainingThieves));
+}
+void UCH4UserWidget::UpdateRemainingPolice(int32 RemainingPolice)
+{
+	PoliceText->SetText(FText::AsNumber(RemainingPolice));
 }
