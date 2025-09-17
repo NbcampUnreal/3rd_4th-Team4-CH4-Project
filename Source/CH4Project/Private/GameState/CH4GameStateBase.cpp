@@ -31,11 +31,17 @@ void ACH4GameStateBase::OnRep_MatchTime()
 {
 	// 클라이언트에서 매치 시간 변경 시 호출 아래는 디버깅 로그로, 위젯과 연동 필요.
 	UE_LOG(LogTemp, Log, TEXT("남은 매치 시간: %.0f초"), MatchTime);
-	// HUD 업데이트 가능
-	if (ACH4GameMode* GM = GetWorld()->GetAuthGameMode<ACH4GameMode>())
-	{
-		GM->UpdateMatchTime();
-	}
+	
+    if (APlayerController* PC = GetWorld()->GetFirstPlayerController()) 
+    {
+        if (ACH4PlayerController* MyPC = Cast<ACH4PlayerController>(PC))
+        {
+            if (MyPC->MyHUDWidget)
+            {
+                MyPC->MyHUDWidget->UpdateMatchTime(MatchTime);
+            }
+        }
+    }
 }
 void ACH4GameStateBase::OnRep_RemainingPolice()
 {
