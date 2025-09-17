@@ -14,7 +14,7 @@ class CH4PROJECT_API AAISpawnVolume : public ABaseSpawnVolume
 {
 	GENERATED_BODY()
 public:
-	virtual FVector GetSpawnLocation() const;
+	virtual FVector GetSpawnLocation() const override;
 	
 
 };

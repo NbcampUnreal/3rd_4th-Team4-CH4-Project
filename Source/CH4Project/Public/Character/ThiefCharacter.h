@@ -1,59 +1,74 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/Character.h"
+#include "Character/CH4Character.h"   // 부모 클래스 헤더
 #include "ThiefCharacter.generated.h"
 
 UCLASS()
-class CH4PROJECT_API AThiefCharacter : public ACharacter
+class CH4PROJECT_API AThiefCharacter : public ACH4Character
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	AThiefCharacter();
+    AThiefCharacter();
 
-	// 아이템 줍기
-	void PickupItem(AActor* ItemActor);
+    // 아이템 사용 입력
+    virtual void UseItemInput() override;
+    void ServerUseItem_Implementation();
 
-	// 아이템 사용 입력
-	UFUNCTION()
-	void UseItemInput();
+    // 아이템 줍기
+    UFUNCTION(BlueprintCallable)
+    void PickupItem(AActor* ItemActor);
 
-	// 서버에서 아이템 사용 처리
-	UFUNCTION(Server, Reliable)
-	void ServerUseItem();
+    // 경찰에게 잡혔을 때 (서버에서만 실행)
+    UFUNCTION(Server, Reliable)
+    void ServerOnCaughtByPolice();
 
-	// 클라이언트 전체에 아이템 사용 알림
-	UFUNCTION(NetMulticast, Reliable)
-	void MulticastUseItem();
+    // 아이템 효과를 모든 클라이언트에 복제
+    UFUNCTION(NetMulticast, Reliable)
+    void MulticastUseClock();
 
-	// 서버에서 체력 감소 처리
-	UFUNCTION(Server, Reliable)
-	void Server_TakeDamage(float DamageAmount);
+    UFUNCTION(NetMulticast, Reliable)
+    void MulticastUseTrap();
+
+    UFUNCTION(NetMulticast, Reliable)
+    void MulticastUseSpeedBoost();
+
+    // HUD 및 UI를 위한 클라이언트 전용 함수
+    UFUNCTION(Client, Reliable)
+    void ClientOnTrapped();
+
+    UFUNCTION(Client, Reliable)
+    void ClientShowSpeedBoostUI();
+
 
 protected:
-	// 실제 아이템 사용 처리
-	void HandleUseItem(AActor* ItemActor);
+    // 실제 아이템 사용 처리 (서버에서만 실행)
+    void HandleUseItem(AActor* ItemActor);
 
-	// 현재 가지고 있는 아이템
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	AActor* HeldItem;
+    void BeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
-	// 아이템 사용 중 여부
-	UPROPERTY(Replicated, BlueprintReadOnly)
-	bool bUsingItem;
+    // 현재 가지고 있는 아이템
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Replicated)
+    AActor* HeldItem;
 
-	// 현재 체력
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing = OnRep_CurrentHealth, Category = "Health")
-	float CurrentHealth;
+    // Trap 클래스 (블루프린트에서 지정)
+    UPROPERTY(EditDefaultsOnly, Category = "Item")
+    TSubclassOf<AActor> TrapClass;
 
-	// 최대 체력
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Health")
-	float MaxHealth = 100.0f;
+    // 복제할 변수를 등록
+    virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	// 체력 변경 시 호출
-	UFUNCTION()
-	void OnRep_CurrentHealth();
+    // 블루프린트에서 구현하는 이벤트들
+    UFUNCTION(BlueprintImplementableEvent)
+    void OnClockEffect();
 
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-};
+    UFUNCTION(BlueprintImplementableEvent)
+    void OnTrapEffect();
+
+    UFUNCTION(BlueprintImplementableEvent)
+    void OnSpeedBoostEffect();
+
+    UFUNCTION(BlueprintImplementableEvent, Category = "Item|UI")
+    void ShowSpeedBoostUI(); // 소유자 HUD에만 보여줄 UI
+    };

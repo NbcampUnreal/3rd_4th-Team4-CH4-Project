@@ -7,6 +7,9 @@
 
 class USpringArmComponent;
 class UCameraComponent;
+class UInputMappingContext;
+class UInputAction;
+struct FInputActionValue;
 
 UCLASS()
 class CH4PROJECT_API ACH4Character : public ACharacter
@@ -20,19 +23,26 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	// 이동
-	void MoveForward(float Value);
-	void MoveRight(float Value);
+	void Move(const FInputActionValue& Value);
+	void Look(const FInputActionValue& Value);
+	void Sprint(const FInputActionValue& Value);
 
-	// 점프
-	void JumpPressed();
-	void JumpReleased();
+	// 아이템 사용과 관련된 가상 함수
+	UFUNCTION(BlueprintCallable)
+	virtual void UseItemInput();
 
-	// 달리기
-	void RunPressed();
-	void RunReleased();
+	// 서버에서 아이템 사용을 처리하는 RPC
+	UFUNCTION(Server, Reliable)
+	virtual void ServerUseItem();
 
+	// 실제 아이템 사용 처리
+	virtual void HandleUseItem(AActor* ItemActor) 
+	{
+	}
+
+public:
 	// 애니메이션 관련
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Animation")
 	bool bIsJumping;
@@ -43,16 +53,16 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Animation")
 	float Speed;
 
-	// 아이템 사용 여부
+	// 아이템 사용 여부(복제)
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Animation")
 	bool bUsingItem;
 
 	// 이동 속도
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement")
-	float WalkSpeed = 600.0f;
+	float WalkSpeed = 300.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement")
-	float RunSpeed = 1200.0f;
+	float RunSpeed = 600.0f;
 
 	// 카메라
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
@@ -61,6 +71,28 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	UCameraComponent* CameraComp;
 
-private:
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+protected:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputMappingContext* DefaultMappingContext;
+
+	// 이동
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputAction* MoveAction;
+
+	//시점 전환
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputAction* LookAction;
+
+	// 점프
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputAction* JumpAction;
+
+	// 달리기
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputAction* SprintAction;
+
+	// 아이템 사용
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	class UInputAction* UseItemAction;
+
 };
