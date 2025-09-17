@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Character/CH4Character.h"   // 부모 클래스 헤더
+#include "Item/BaseItem.h"
 #include "ThiefCharacter.generated.h"
 
 UCLASS()
@@ -18,7 +19,7 @@ public:
 
     // 아이템 줍기
     UFUNCTION(BlueprintCallable)
-    void PickupItem(AActor* ItemActor);
+    void PickupItem(UBaseItem* Item);
 
     // 경찰에게 잡혔을 때 (서버에서만 실행)
     UFUNCTION(Server, Reliable)
@@ -44,17 +45,13 @@ public:
 
 protected:
     // 실제 아이템 사용 처리 (서버에서만 실행)
-    void HandleUseItem(AActor* ItemActor);
+    void HandleUseItem(UBaseItem* Item);
 
     void BeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
     // 현재 가지고 있는 아이템
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Replicated)
-    AActor* HeldItem;
-
-    // Trap 클래스 (블루프린트에서 지정)
-    UPROPERTY(EditDefaultsOnly, Category = "Item")
-    TSubclassOf<AActor> TrapClass;
+    UBaseItem* HeldItem;
 
     // 복제할 변수를 등록
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;

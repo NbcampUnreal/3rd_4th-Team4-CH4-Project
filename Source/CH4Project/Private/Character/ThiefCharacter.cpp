@@ -23,9 +23,9 @@ void AThiefCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutL
 
 void AThiefCharacter::PickupItem(AActor* ItemActor)
 {
-    if (ItemActor)
+    if (Item)
     {
-        HeldItem = ItemActor;
+        HeldItem = Item;
     }
 }
 
