@@ -1,8 +1,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Character/CH4Character.h"   // 부모 클래스 헤더
+#include "Character/CH4Character.h"
+#include "Item/BaseItem.h"
+#include "Item/CokeItem.h"
+#include "Item/TrapItem.h"
+#include "Item/ClockItem.h"
 #include "ThiefCharacter.generated.h"
+
 
 UCLASS()
 class CH4PROJECT_API AThiefCharacter : public ACH4Character
@@ -10,65 +15,73 @@ class CH4PROJECT_API AThiefCharacter : public ACH4Character
     GENERATED_BODY()
 
 public:
+    // 생성자
     AThiefCharacter();
 
-    // 아이템 사용 입력
+    //아이템 사용 입력, 로컬에서 호출
     virtual void UseItemInput() override;
-    void ServerUseItem_Implementation();
 
     // 아이템 줍기
-    UFUNCTION(BlueprintCallable)
-    void PickupItem(AActor* ItemActor);
+    UFUNCTION(BlueprintCallable, Category = "Item")
+    void PickupItem(UBaseItem* Item);
 
-    // 경찰에게 잡혔을 때 (서버에서만 실행)
+    // 서버에서 아이템 사용 요청 RPC
+    virtual void ServerUseItem_Implementation() override;
+
+    // 서버에서 아이템 줍기 요청 RPC
+    UFUNCTION(Server, Reliable)
+    void ServerPickupItem(AActor* ItemActor);
+    void ServerPickupItem_Implementation(AActor* ItemActor);
+
+    // 경찰에게 잡혔을 때 서버에서만 실행
     UFUNCTION(Server, Reliable)
     void ServerOnCaughtByPolice();
+    void ServerOnCaughtByPolice_Implementation();
 
-    // 아이템 효과를 모든 클라이언트에 복제
-    UFUNCTION(NetMulticast, Reliable)
-    void MulticastUseClock();
-
-    UFUNCTION(NetMulticast, Reliable)
-    void MulticastUseTrap();
-
-    UFUNCTION(NetMulticast, Reliable)
-    void MulticastUseSpeedBoost();
-
-    // HUD 및 UI를 위한 클라이언트 전용 함수
+    // HUD/UI 클라이언트용
     UFUNCTION(Client, Reliable)
     void ClientOnTrapped();
+    void ClientOnTrapped_Implementation();
 
-    UFUNCTION(Client, Reliable)
+    // 속도 증가 UI 클라이언트용
     void ClientShowSpeedBoostUI();
 
-
 protected:
-    // 실제 아이템 사용 처리 (서버에서만 실행)
-    void HandleUseItem(AActor* ItemActor);
+    // 캡슐 충돌 이벤트
+    UFUNCTION()
+    void OnOverlapBegin(UPrimitiveComponent* OverlappedComp,
+        AActor* OtherActor,
+        UPrimitiveComponent* OtherComp,
+        int32 OtherBodyIndex,
+        bool bFromSweep,
+        const FHitResult& SweepResult);
 
-    void BeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+    //실제 아이템 사용 처리 (서버에서만 실행)
+    virtual void HandleUseItem(UBaseItem* Item);
+
+    //사용 중인 아이템 초기화 함수
+    void ResetUsingItem();
 
     // 현재 가지고 있는 아이템
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Replicated)
-    AActor* HeldItem;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, ReplicatedUsing = OnRep_HeldItem, Category = "Item")
+    UBaseItem* HeldItem;
 
-    // Trap 클래스 (블루프린트에서 지정)
-    UPROPERTY(EditDefaultsOnly, Category = "Item")
-    TSubclassOf<AActor> TrapClass;
+    // HeldItem 값이 변경될 때 자동 호출
+    UFUNCTION()
+    void OnRep_HeldItem();
 
-    // 복제할 변수를 등록
+    // 복제 등록
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-    // 블루프린트에서 구현하는 이벤트들
-    UFUNCTION(BlueprintImplementableEvent)
-    void OnClockEffect();
+    // 블루프린트에서 구현 아이템 사용 시 효과
+    UFUNCTION(BlueprintImplementableEvent, Category = "Item|Effect")
+    void OnItemUsed(UBaseItem* Item);
 
-    UFUNCTION(BlueprintImplementableEvent)
-    void OnTrapEffect();
-
-    UFUNCTION(BlueprintImplementableEvent)
-    void OnSpeedBoostEffect();
-
+    // 소유자 UI: 속도 증가 표시
     UFUNCTION(BlueprintImplementableEvent, Category = "Item|UI")
-    void ShowSpeedBoostUI(); // 소유자 HUD에만 보여줄 UI
-    };
+    void ShowSpeedBoostUI();
+
+    // UI 업데이트 블루프린트 이벤트
+    UFUNCTION(BlueprintImplementableEvent, Category = "Item|UI")
+    void UpdateHeldItemUI(UBaseItem* NewItem);
+};

@@ -8,7 +8,8 @@
 
 ACH4GameStateBase::ACH4GameStateBase()
 {
-	MatchTypes = EMatchTypes::WaitingToStart; RemainingThieves = 0 ;
+	MatchTypes = EMatchTypes::WaitingToStart;
+	RemainingThieves = 0 ;
 	RemainingPolice = 0 ;
 	MatchTime = 600.f; //테스트 용으로 20초로 설정해두었음.
 	SpawnedAI = 0;
@@ -23,15 +24,35 @@ void ACH4GameStateBase::OnRep_MatchTypes()
 
 void ACH4GameStateBase::OnRep_RemainingThieves()
 {
-	//클라이언트에서 도둑 수 변경 시 호출되며, HUD나 UI에서 갱신하는 로직 추가 가능
-	UE_LOG(LogTemp, Log, TEXT("도둑 남은 수: %d"), RemainingThieves);
+	//UE_LOG(LogTemp, Log, TEXT("도둑 남은 수: %d"), RemainingThieves);
+	if (APlayerController* PC = GetWorld()->GetFirstPlayerController()) 
+	{
+		if (ACH4PlayerController* MyPC = Cast<ACH4PlayerController>(PC))
+		{
+			if (MyPC->MyHUDWidget)
+			{
+				MyPC->MyHUDWidget->UpdateRemainingThieves(RemainingThieves);
+			}
+		}
+	}
 }
-
+void ACH4GameStateBase::OnRep_RemainingPolice()
+{
+	//UE_LOG(LogTemp, Log, TEXT("경찰 남은 수: %d"), RemainingPolice);
+	if (APlayerController* PC = GetWorld()->GetFirstPlayerController()) 
+	{
+		if (ACH4PlayerController* MyPC = Cast<ACH4PlayerController>(PC))
+		{
+			if (MyPC->MyHUDWidget)
+			{
+				MyPC->MyHUDWidget->UpdateRemainingPolice(RemainingPolice);
+			}
+		}
+	}
+}
 void ACH4GameStateBase::OnRep_MatchTime()
 {
-	// 클라이언트에서 매치 시간 변경 시 호출 아래는 디버깅 로그로, 위젯과 연동 필요.
-	UE_LOG(LogTemp, Log, TEXT("남은 매치 시간: %.0f초"), MatchTime);
-	
+	//UE_LOG(LogTemp, Log, TEXT("남은 매치 시간: %.0f초"), MatchTime);
     if (APlayerController* PC = GetWorld()->GetFirstPlayerController()) 
     {
         if (ACH4PlayerController* MyPC = Cast<ACH4PlayerController>(PC))
@@ -43,12 +64,6 @@ void ACH4GameStateBase::OnRep_MatchTime()
         }
     }
 }
-void ACH4GameStateBase::OnRep_RemainingPolice()
-{
-	UE_LOG(LogTemp, Log, TEXT("경찰 남은 수: %d"), RemainingPolice);
-	//남은 도둑 숫자와 마찬가지로 남은 경찰 숫자를 출력하는 코드 확장 가능.
-}
-
 
 void ACH4GameStateBase::SetMatchState(EMatchTypes NewMatchType)
 {
@@ -78,6 +93,7 @@ void ACH4GameStateBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 
 	DOREPLIFETIME(ACH4GameStateBase, MatchTypes);
 	DOREPLIFETIME(ACH4GameStateBase, RemainingThieves);
+	DOREPLIFETIME(ACH4GameStateBase, RemainingPolice);
 	DOREPLIFETIME(ACH4GameStateBase, MatchTime);
 	DOREPLIFETIME(ACH4GameStateBase, SpawnedAI);
 	DOREPLIFETIME(ACH4GameStateBase, MaxAISpawn);
