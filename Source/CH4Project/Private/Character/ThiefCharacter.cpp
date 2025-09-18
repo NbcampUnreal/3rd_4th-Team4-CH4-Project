@@ -1,37 +1,89 @@
 #include "Character/ThiefCharacter.h"
-#include "Character/CH4Character.h"
+#include "Components/CapsuleComponent.h"
+#include "Item/BaseItem.h"
 #include "Net/UnrealNetwork.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameMode/CH4GameMode.h"
 #include "GameState/CH4GameStateBase.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "GameFramework/GameStateBase.h"
 
 AThiefCharacter::AThiefCharacter()
-    : Super() // 부모 생성자 호출
 {
     bReplicates = true;
     HeldItem = nullptr;
     bUsingItem = false;
+
+    // 충돌 이벤트 바인딩
+    GetCapsuleComponent()->OnComponentBeginOverlap.AddDynamic(this, &AThiefCharacter::OnOverlapBegin);
 }
 
+// 충돌 이벤트
+void AThiefCharacter::OnOverlapBegin(UPrimitiveComponent* OverlappedComp,
+    AActor* OtherActor,
+    UPrimitiveComponent* OtherComp,
+    int32 OtherBodyIndex,
+    bool bFromSweep,
+    const FHitResult& SweepResult)
+{
+    if (!OtherActor) return;
+
+    // 이미 아이템을 들고 있으면 무시
+    if (HeldItem) return;
+
+    // 충돌한 것이 아이템 액터라면
+    if (OtherActor->ActorHasTag(TEXT("Item")))
+    {
+        UE_LOG(LogTemp, Log, TEXT("캐릭터가 아이템과 충돌했습니다: %s"), *OtherActor->GetName());
+        ServerPickupItem(OtherActor); // 서버에 요청
+    }
+}
+
+// 서버에서 아이템 줍기 처리
+void AThiefCharacter::ServerPickupItem_Implementation(AActor* ItemActor)
+{
+    if (!ItemActor) return;
+
+    UBaseItem* Item = nullptr;
+    UFunction* Func = ItemActor->FindFunction(FName("GetItemData"));
+    if (Func)
+    {
+        struct FItemGetter { UBaseItem* ReturnValue; };
+        FItemGetter ItemGetter;
+        ItemActor->ProcessEvent(Func, &ItemGetter);
+        Item = ItemGetter.ReturnValue;
+    }
+
+    if (Item)
+    {
+        PickupItem(Item);
+        ItemActor->Destroy(); // 서버에서 아이템 제거
+    }
+}
+
+// HeldItem 복제 등록
 void AThiefCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
     DOREPLIFETIME(AThiefCharacter, HeldItem);
 }
 
-void AThiefCharacter::PickupItem(AActor* ItemActor)
+// HeldItem 값 변경 시 UI 갱신
+void AThiefCharacter::OnRep_HeldItem()
 {
-    if (Item)
-    {
-        HeldItem = Item;
-    }
+    UpdateHeldItemUI(HeldItem);
 }
 
+// 실제 아이템 줍기
+void AThiefCharacter::PickupItem(UBaseItem* Item)
+{
+    if (!Item || HeldItem) return;
+    HeldItem = Item;
+}
+
+// 아이템 사용 입력
 void AThiefCharacter::UseItemInput()
 {
-    if (HeldItem)
+    if (HeldItem && !bUsingItem)
     {
         if (HasAuthority())
         {
@@ -46,142 +98,70 @@ void AThiefCharacter::UseItemInput()
 
 void AThiefCharacter::ServerUseItem_Implementation()
 {
-    if (HeldItem)
+    if (HeldItem && !bUsingItem)
     {
         HandleUseItem(HeldItem);
     }
 }
 
-void AThiefCharacter::HandleUseItem(AActor* ItemActor)
+// 실제 아이템 사용 처리 (상위 클래스 시그니처와 동일)
+void AThiefCharacter::HandleUseItem(UBaseItem* ItemActor)
 {
     if (!ItemActor) return;
 
+    // 안전하게 UBaseItem로 캐스팅
+    UBaseItem* Item = Cast<UBaseItem>(ItemActor);
+    if (!Item) return;
+
     bUsingItem = true;
 
-    if (ItemActor->ActorHasTag("SpeedBoost"))
-    {
-        // 원래 속도 저장
-        float OriginalSpeed = GetCharacterMovement()->MaxWalkSpeed;
+    // 아이템 사용
+    Item->UseItem(this);
 
-        // 속도 증가
-        GetCharacterMovement()->MaxWalkSpeed = OriginalSpeed + 300.f;
+    // 블루프린트 이벤트 호출
+    OnItemUsed(Item);
 
-        // 일정 시간 후 원래 속도로 되돌리기
-        FTimerHandle TimerHandle_ResetSpeed;
-        GetWorld()->GetTimerManager().SetTimer(
-            TimerHandle_ResetSpeed,
-            FTimerDelegate::CreateLambda([this, OriginalSpeed]()
-                {
-                    GetCharacterMovement()->MaxWalkSpeed = OriginalSpeed;
-                }),
-            5.0f, // 지속 시간 (임시 5초)
-            false
-        );
-        // 클라 전체 이펙트
-        MulticastUseSpeedBoost();
-
-        // 소유자에게만 HUD 보이게 하는 클라이언트 RPC 호출 (서버 호출)
+    // 클라이언트 UI
+    if (Item->IsA(UCokeItem::StaticClass()))
         ClientShowSpeedBoostUI();
-    }
-    else if (ItemActor->ActorHasTag("Trap"))
-    {
-        if (TrapClass)
-        {
-            FActorSpawnParameters SpawnParams;
-            SpawnParams.Owner = this;
-            SpawnParams.Instigator = GetInstigator();
-            SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-            // 서버에서 트랩 스폰
-            GetWorld()->SpawnActor<AActor>(TrapClass, GetActorLocation(), GetActorRotation(), SpawnParams);
-
-            // 클라 전체에 효과
-            MulticastUseTrap();
-        }
-    }
-    else if (ItemActor->ActorHasTag("Clock"))
-    {
-        if (ACH4GameStateBase* GS = GetWorld()->GetGameState<ACH4GameStateBase>())
-        {
-            // 제한 시간 5초 줄이기 (음수 방지)
-            GS->MatchTime = FMath::Max(0.f, GS->MatchTime - 5.f);
-
-            GS->OnRep_MatchTime(); // 클라 HUD 갱신 트리거
-        }
-
-        // 클라 전체 이펙트
-        MulticastUseClock();
-    }
-
-    // 아이템 제거
-    ItemActor->Destroy();
+    // 사용 후 초기화
     HeldItem = nullptr;
 
-    //아이템 효과 해제(안넣으면 영원히 사용됨) 이팩트 재생을 위해 딜레이를 넣었는데 필요 없으면 bUsingItem = false; 만 남기면 됨 
-    GetWorld()->GetTimerManager().SetTimerForNextTick([this]()
-        {
-            bUsingItem = false;
-        });
+    // 다음 틱에 bUsingItem 해제 (람다 대신 멤버 함수)
+    GetWorld()->GetTimerManager().SetTimerForNextTick(this, &AThiefCharacter::ResetUsingItem);
 }
 
-void AThiefCharacter::MulticastUseSpeedBoost_Implementation()
+// bUsingItem 초기화
+void AThiefCharacter::ResetUsingItem()
 {
-    // 모든 클라에서 보여줄 이펙트/사운드
-    OnSpeedBoostEffect();
-    UE_LOG(LogTemp, Log, TEXT("Speed Boost Effect"));
+    bUsingItem = false;
 }
 
-void AThiefCharacter::MulticastUseTrap_Implementation()
-{
-    // 덫 설치 효과
-    OnTrapEffect();
-    UE_LOG(LogTemp, Log, TEXT("Trap Placed"));
-}
-
-void AThiefCharacter::MulticastUseClock_Implementation()
-{
-    // 시계 효과
-    OnClockEffect();
-    UE_LOG(LogTemp, Log, TEXT("Clock Used Time Reduced."));
-}
-
-// 경찰에게 잡혔을 때
+// 경찰에게 잡혔을 때 서버 처리
 void AThiefCharacter::ServerOnCaughtByPolice_Implementation()
 {
-    // GameMode 가져오기
     if (ACH4GameMode* GM = Cast<ACH4GameMode>(UGameplayStatics::GetGameMode(this)))
     {
-        // 도둑 제거 처리
-        Destroy(); // 혹은 상태 전환
+        Destroy();
 
-        // GameState 가져오기
         if (ACH4GameStateBase* GS = GetWorld()->GetGameState<ACH4GameStateBase>())
         {
             GS->RemainingThieves = FMath::Max(0, GS->RemainingThieves - 1);
-            GS->OnRep_RemainingThieves(); // 서버에서 바로 UI 갱신 트리거
+            GS->OnRep_RemainingThieves();
         }
 
-        // 클라 전용 실패 UI 띄우기
         ClientOnTrapped();
     }
 }
 
-// Trap에 걸렸을 때 UI 표시
+// 클라이언트 UI 처리
 void AThiefCharacter::ClientOnTrapped_Implementation()
 {
-    OnTrapEffect();
+    OnItemUsed(nullptr);
 }
 
-// 블루프린트에서 구현할 수 있도록 선언
-UFUNCTION(BlueprintImplementableEvent, Category = "UI")
-void OnTrappedUI();
-
-// 이속 아이템 사용 UI 표시
-void AThiefCharacter::ClientShowSpeedBoostUI_Implementation()
+void AThiefCharacter::ClientShowSpeedBoostUI()
 {
     ShowSpeedBoostUI();
 }
-
-// 블루프린트에서 구현할 수 있도록 선언
-UFUNCTION(BlueprintImplementableEvent, Category = "UI")
-void ShowSpeedBoostUI();

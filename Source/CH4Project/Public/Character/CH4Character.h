@@ -9,6 +9,7 @@ class USpringArmComponent;
 class UCameraComponent;
 class UInputMappingContext;
 class UInputAction;
+class UBaseItem;
 struct FInputActionValue;
 
 UCLASS()
@@ -38,9 +39,7 @@ protected:
 	virtual void ServerUseItem();
 
 	// 실제 아이템 사용 처리
-	virtual void HandleUseItem(AActor* ItemActor) 
-	{
-	}
+	virtual void HandleUseItem(UBaseItem* Item);
 
 public:
 	// 애니메이션 관련

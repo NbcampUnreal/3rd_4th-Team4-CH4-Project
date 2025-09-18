@@ -158,3 +158,13 @@ void ACH4Character::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLif
 	DOREPLIFETIME(ACH4Character, bIsRunning);
 	DOREPLIFETIME(ACH4Character, bUsingItem);
 }
+
+void ACH4Character::HandleUseItem(UBaseItem* Item)
+{
+	if (!Item)
+	{
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("HandleUseItem 함수 호출."));
+}
