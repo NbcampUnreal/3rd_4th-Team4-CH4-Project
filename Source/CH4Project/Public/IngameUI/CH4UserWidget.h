@@ -20,6 +20,8 @@ public:
 	void UpdateRemainingThieves(int32 RemainingThieves);
 	UFUNCTION(BlueprintCallable)
 	void UpdateRemainingPolice(int32 RemainingPolice);
+	UFUNCTION(BlueprintCallable)
+	void UpdateRemainingArrests(int32 RemainingArrests);
 	
 	UPROPERTY(meta = (BindWidget))
 	UTextBlock* TimeText;
@@ -27,4 +29,6 @@ public:
 	UTextBlock* ThievesText;
 	UPROPERTY(meta = (BindWidget))
 	UTextBlock* PoliceText;
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* ArrestsText;
 };
