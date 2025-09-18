@@ -16,15 +16,7 @@ class CH4PROJECT_API UCH4UserWidget : public UUserWidget
 public:
 	UFUNCTION(BlueprintCallable)
 	void UpdateMatchTime(float NewTime);
-	UFUNCTION(BlueprintCallable)
-	void UpdateRemainingThieves(int32 RemainingThieves);
-	UFUNCTION(BlueprintCallable)
-	void UpdateRemainingPolice(int32 RemainingPolice);
 	
 	UPROPERTY(meta = (BindWidget))
 	UTextBlock* TimeText;
-	UPROPERTY(meta = (BindWidget))
-	UTextBlock* ThievesText;
-	UPROPERTY(meta = (BindWidget))
-	UTextBlock* PoliceText;
 };
