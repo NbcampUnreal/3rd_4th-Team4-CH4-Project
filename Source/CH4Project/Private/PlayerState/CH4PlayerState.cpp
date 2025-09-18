@@ -1,8 +1,7 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "PlayerState/CH4PlayerState.h"
 #include "Net/UnrealNetwork.h"
+#include "PlayerController/CH4PlayerController.h"
+#include "IngameUI/CH4UserWidget.h"
 
 ACH4PlayerState::ACH4PlayerState()
 {
@@ -73,6 +72,16 @@ void ACH4PlayerState::OnRep_RemainingArrests()
 	UE_LOG(LogTemp, Log, TEXT("OnRep_RemainingArrests: 남은 체포 %d"), RemainingArrests);
 	// UI/위젯 즉시 갱신
 	// RoleWidget->UpdateMaxArrests(RemainingArrests);
+	if (APlayerController* PC = GetWorld()->GetFirstPlayerController()) 
+	{
+		if (ACH4PlayerController* MyPC = Cast<ACH4PlayerController>(PC))
+		{
+			if (MyPC->MyHUDWidget)
+			{
+				MyPC->MyHUDWidget->UpdateRemainingArrests(RemainingArrests);
+			}
+		}
+	}
 }
 
 void ACH4PlayerState::OnRep_MaxArrests()
