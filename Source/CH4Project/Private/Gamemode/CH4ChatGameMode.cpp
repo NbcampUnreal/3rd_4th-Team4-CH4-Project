@@ -2,7 +2,6 @@
 #include "GameState/CH4ChatGameState.h"
 #include "PlayerController/CH4ChatPlayerController.h"
 #include "PlayerState/CH4ChatPlayerState.h"
-#include "Blueprint/UserWidget.h"
 #include "Kismet/GameplayStatics.h"
 
 // 게임 모드 할당 시 기본적으로 탑재되는 클래스
@@ -12,19 +11,11 @@ ACH4ChatGameMode::ACH4ChatGameMode()
 	PlayerStateClass = ACH4ChatPlayerState::StaticClass();
 	GameStateClass = ACH4ChatGameState::StaticClass();
 }
-// 로비 맵 실행 시 UI작동
+// 로비 맵 실행 시 UI작동 -> 컨트롤러에서 다시 만들기
 void ACH4ChatGameMode::BeginPlay()
 {
     Super::BeginPlay();
 
-    if (LobbyWidgetClass)
-    {
-        LobbyWidget = CreateWidget<UUserWidget>(GetWorld(), LobbyWidgetClass);
-        if (LobbyWidget)
-        {
-            LobbyWidget->AddToViewport();
-        }
-    }
 }
 
 void ACH4ChatGameMode::CheckAllPlayersReady()
