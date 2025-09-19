@@ -1,8 +1,12 @@
 #include "PlayerController/CH4ChatPlayerController.h"
 #include "GameState/CH4ChatGameState.h"
 #include "PlayerState/CH4ChatPlayerState.h"
+#include "Gamemode/CH4ChatGameMode.h"
 #include "Net/UnrealNetwork.h"
+#include "Blueprint/UserWidget.h"
+#include "Components/Image.h"
 #include "Engine/Engine.h"
+#include "Engine/Texture2D.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 
@@ -10,6 +14,20 @@
 ACH4ChatPlayerController::ACH4ChatPlayerController()
 {
 	bReplicates = true;
+}
+
+void ACH4ChatPlayerController::BeginPlay()
+{
+	Super::BeginPlay();
+
+	if (IsLocalController() && LobbyWidgetClass)
+	{
+		UUserWidget* LobbyUI = CreateWidget<UUserWidget>(this, LobbyWidgetClass);
+		if (LobbyUI)
+		{
+			LobbyUI->AddToViewport();
+		}
+	}
 }
 
 // 서버 RPC 유효성 검사
@@ -62,6 +80,51 @@ void ACH4ChatPlayerController::SendChatMessage(const FString& Message)
 	{
 		Server_SendChatMessage(Message);
 	}
+}
+
+// 준비 상태 호출
+void ACH4ChatPlayerController::Server_SetReady_Implementation(bool bNewReady)
+{
+	if (ACH4ChatPlayerState* PS = GetPlayerState<ACH4ChatPlayerState>())
+	{
+		PS->ServerSetReady(bNewReady);
+	}
+}
+
+// 클라이언트에서 결과 화면을 띄우는 함수 구현
+void ACH4ChatPlayerController::ShowResultScreen_Implementation(bool bIsWin)
+{
+	if (ResultScreen == nullptr)
+	{
+		return;
+	}
+
+	// 결과 UI 생성
+	UUserWidget* ResultUI = CreateWidget<UUserWidget>(this, ResultScreen);
+	if (ResultUI == nullptr)
+	{
+		return;
+	}
+
+	// 화면에 표시
+	ResultUI->AddToViewport();
+
+	if (UImage* ResultImage = Cast<UImage>(ResultUI->GetWidgetFromName(TEXT("ResultScreen"))))
+	{
+		UTexture2D* WinTex = LoadObject<UTexture2D>(nullptr, TEXT("/Game/OutGameUI/Win.Win"));
+		UTexture2D* LoseTex = LoadObject<UTexture2D>(nullptr, TEXT("/Game/OutGameUI/Lose.Lose"));
+
+		if (WinTex && LoseTex)
+		{
+			ResultImage->SetBrushFromTexture(bIsWin ? WinTex : LoseTex);
+		}
+	}
+}
+
+// 로비로 돌아가기
+void ACH4ChatPlayerController::ReturnLobby()
+{
+	UGameplayStatics::OpenLevel(this, FName("LobbyMap"));
 }
 
 // 게임 종료
