@@ -42,12 +42,16 @@ void ACH4PlayerState::OnRep_PlayerRole() //디버그 로그가 중첩되서 출�
 	{
 		if (PC->IsLocalController())
 		{
-			UE_LOG(LogTemp, Log, TEXT("OnRep_PlayerRole: 내 역할 %d"), (int32)PlayerRole);
+			// UE_LOG(LogTemp, Log, TEXT("OnRep_PlayerRole: 내 역할 %d"), (int32)PlayerRole);
+			if (ACH4PlayerController* MyPC = Cast<ACH4PlayerController>(PC))
+			{
+				if (MyPC->MyHUDWidget)
+				{
+					MyPC->MyHUDWidget->UpdatePlayerRole(PlayerRole);
+				}
+			}
 		}
 	}
-
-	// 클라이언트에서 UI/애니메이션 처리 가능
-	// RoleWidget->UpdateRole(PlayerRole);
 }
 
 void ACH4PlayerState::SetRemainingArrests(int32 NewRemainingArrests)
@@ -69,9 +73,7 @@ void ACH4PlayerState::SetMaxArrests(int32 NewMaxArrests)
 
 void ACH4PlayerState::OnRep_RemainingArrests()
 {
-	UE_LOG(LogTemp, Log, TEXT("OnRep_RemainingArrests: 남은 체포 %d"), RemainingArrests);
-	// UI/위젯 즉시 갱신
-	// RoleWidget->UpdateMaxArrests(RemainingArrests);
+	//UE_LOG(LogTemp, Log, TEXT("OnRep_RemainingArrests: 남은 체포 %d"), RemainingArrests);
 	if (APlayerController* PC = GetWorld()->GetFirstPlayerController()) 
 	{
 		if (ACH4PlayerController* MyPC = Cast<ACH4PlayerController>(PC))

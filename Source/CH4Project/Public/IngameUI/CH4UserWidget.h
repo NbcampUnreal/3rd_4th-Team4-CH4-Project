@@ -15,14 +15,17 @@ class CH4PROJECT_API UCH4UserWidget : public UUserWidget
 
 public:
 	UFUNCTION(BlueprintCallable)
-	void UpdateMatchTime(float NewTime);
+	void UpdateMatchTime(float MatchTime);
 	UFUNCTION(BlueprintCallable)
 	void UpdateRemainingThieves(int32 RemainingThieves);
 	UFUNCTION(BlueprintCallable)
 	void UpdateRemainingPolice(int32 RemainingPolice);
 	UFUNCTION(BlueprintCallable)
 	void UpdateRemainingArrests(int32 RemainingArrests);
+	UFUNCTION(BlueprintCallable)
+	void UpdatePlayerRole(EPlayerRole NewRole);
 	
+
 	UPROPERTY(meta = (BindWidget))
 	UTextBlock* TimeText;
 	UPROPERTY(meta = (BindWidget))
@@ -31,4 +34,11 @@ public:
 	UTextBlock* PoliceText;
 	UPROPERTY(meta = (BindWidget))
 	UTextBlock* ArrestsText;
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* StatusText;
+
+private:
+	FTimerHandle ClearTextTimerHandle;
+
+	void ClearStatusText();
 };
