@@ -7,8 +7,8 @@
 ACH4PlayerState::ACH4PlayerState()
 {
 	PlayerRole = EPlayerRole::Unassigned ; // 초기값
-	RemainingArrests = 0;
-	MaxArrests = 0;
+	RemainingArrests = 3; //동적 체포 X, MaxArrests는 굳이 수정할 필요 없음.
+	MaxArrests = 3;
 }
 void ACH4PlayerState::SetPlayerRole(EPlayerRole NewRole)
 {
