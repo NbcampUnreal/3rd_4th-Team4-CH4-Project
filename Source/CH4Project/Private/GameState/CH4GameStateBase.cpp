@@ -11,7 +11,7 @@ ACH4GameStateBase::ACH4GameStateBase()
 	MatchTypes = EMatchTypes::WaitingToStart;
 	RemainingThieves = 0 ;
 	RemainingPolice = 0 ;
-	MatchTime = 600.f; //테스트 용으로 20초로 설정해두었음.
+	MatchTime = 30.f; //테스트 용으로 20초로 설정해두었음.
 	SpawnedAI = 0;
 	MaxAISpawn = 10;
 }
@@ -24,46 +24,46 @@ void ACH4GameStateBase::OnRep_MatchTypes()
 
 void ACH4GameStateBase::OnRep_RemainingThieves()
 {
-	//UE_LOG(LogTemp, Log, TEXT("도둑 남은 수: %d"), RemainingThieves);
 	if (APlayerController* PC = GetWorld()->GetFirstPlayerController()) 
 	{
 		if (ACH4PlayerController* MyPC = Cast<ACH4PlayerController>(PC))
 		{
-			if (MyPC->MyHUDWidget)
+			if (IsValid(MyPC->MyHUDWidget))
 			{
 				MyPC->MyHUDWidget->UpdateRemainingThieves(RemainingThieves);
 			}
 		}
 	}
 }
+
 void ACH4GameStateBase::OnRep_RemainingPolice()
 {
-	//UE_LOG(LogTemp, Log, TEXT("경찰 남은 수: %d"), RemainingPolice);
 	if (APlayerController* PC = GetWorld()->GetFirstPlayerController()) 
 	{
 		if (ACH4PlayerController* MyPC = Cast<ACH4PlayerController>(PC))
 		{
-			if (MyPC->MyHUDWidget)
+			if (IsValid(MyPC->MyHUDWidget))
 			{
 				MyPC->MyHUDWidget->UpdateRemainingPolice(RemainingPolice);
 			}
 		}
 	}
 }
+
 void ACH4GameStateBase::OnRep_MatchTime()
 {
-	//UE_LOG(LogTemp, Log, TEXT("남은 매치 시간: %.0f초"), MatchTime);
-    if (APlayerController* PC = GetWorld()->GetFirstPlayerController()) 
-    {
-        if (ACH4PlayerController* MyPC = Cast<ACH4PlayerController>(PC))
-        {
-            if (MyPC->MyHUDWidget)
-            {
-                MyPC->MyHUDWidget->UpdateMatchTime(MatchTime);
-            }
-        }
-    }
+	if (APlayerController* PC = GetWorld()->GetFirstPlayerController()) 
+	{
+		if (ACH4PlayerController* MyPC = Cast<ACH4PlayerController>(PC))
+		{
+			if (IsValid(MyPC->MyHUDWidget))
+			{
+				MyPC->MyHUDWidget->UpdateMatchTime(MatchTime);
+			}
+		}
+	}
 }
+
 
 void ACH4GameStateBase::SetMatchState(EMatchTypes NewMatchType)
 {
@@ -87,6 +87,22 @@ bool ACH4GameStateBase::ServerSetMatchState_Validate(EMatchTypes NewMatchType)
 	return true;
 }
 
+//최종적으로 승리한 역할군으로 업데이트
+void ACH4GameStateBase::SetFinalResult(EWinTeam NewResult)
+{
+	if (HasAuthority())
+	{
+		FinalResult = NewResult;
+		OnRep_FinalResult(); // 서버에서도 즉시 반영
+	}
+	else return;
+}
+
+void ACH4GameStateBase::OnRep_FinalResult()
+{
+	// 클라에서 UI 갱신 등 처리 가능
+}
+
 void ACH4GameStateBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
@@ -97,4 +113,5 @@ void ACH4GameStateBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	DOREPLIFETIME(ACH4GameStateBase, MatchTime);
 	DOREPLIFETIME(ACH4GameStateBase, SpawnedAI);
 	DOREPLIFETIME(ACH4GameStateBase, MaxAISpawn);
+	DOREPLIFETIME(ACH4GameStateBase, FinalResult);
 }
