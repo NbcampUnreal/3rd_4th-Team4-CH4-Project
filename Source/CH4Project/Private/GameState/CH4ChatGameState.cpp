@@ -1,5 +1,6 @@
 #include "GameState/CH4ChatGameState.h"
 #include "PlayerController/CH4ChatPlayerController.h"
+#include "Gamemode/CH4ChatGameMode.h"
 #include "Net/UnrealNetwork.h"
 
 
@@ -7,7 +8,7 @@ void ACH4ChatGameState::Multicast_BroadcastChat_Implementation(const FString& Se
 {
 	AddMessageToHistory(SenderPlayerName, Message);
 
-
+	// 모든 플레이어에게 컨트롤러 제공
 	UWorld* World = GetWorld();
 	if (!World) return;
 
@@ -28,6 +29,7 @@ void ACH4ChatGameState::Multicast_BroadcastChat_Implementation(const FString& Se
 
 void ACH4ChatGameState::AddMessageToHistory(const FString& Sender, const FString& Message)
 {
+	// 새로운 메시지 내역에 추가
 	FChatMessage NewMsg;
 	NewMsg.Sender = Sender;
 	NewMsg.Message = Message;
@@ -46,4 +48,3 @@ void ACH4ChatGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 
 	DOREPLIFETIME(ACH4ChatGameState, ChatHistory);
 }
-

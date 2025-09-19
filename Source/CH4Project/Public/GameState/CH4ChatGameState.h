@@ -10,10 +10,12 @@ struct FChatMessage
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Chat")
+	// 보내는 사람
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Chat")
 	FString Sender;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Chat")
+	// 보낸 메시지
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Chat")
 	FString Message;
 };
 
@@ -23,10 +25,12 @@ class CH4PROJECT_API ACH4ChatGameState : public AGameStateBase
 	GENERATED_BODY()
 
 public:
+	// 서버에서 호출 -> 모든 클라이언트에게 메시지
 	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_BroadcastChat(const FString& SenderPlayerName, const FString& Message);
 	void Multicast_BroadcastChat_Implementation(const FString& SenderPlayerName, const FString& Message);
 
+	// 채팅 내역
 	UPROPERTY(ReplicatedUsing = OnRep_ChatHistory, BlueprintReadOnly, Category = "Chat")
 	TArray<FChatMessage> ChatHistory;
 

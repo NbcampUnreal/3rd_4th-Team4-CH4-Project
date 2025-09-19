@@ -9,6 +9,9 @@
 #include "InputAction.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "GameMode/CH4GameMode.h"
+#include "PlayerState/CH4PlayerState.h"
+#include "Kismet/GameplayStatics.h"
 
 ACH4Character::ACH4Character()
 {
@@ -157,4 +160,14 @@ void ACH4Character::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLif
 	DOREPLIFETIME(ACH4Character, bIsJumping);
 	DOREPLIFETIME(ACH4Character, bIsRunning);
 	DOREPLIFETIME(ACH4Character, bUsingItem);
+}
+
+void ACH4Character::HandleUseItem(UBaseItem* Item)
+{
+	if (!Item)
+	{
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("HandleUseItem 함수 호출."));
 }
