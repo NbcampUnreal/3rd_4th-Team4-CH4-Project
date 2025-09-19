@@ -1,5 +1,6 @@
 #include "GameState/CH4ChatGameState.h"
 #include "PlayerController/CH4ChatPlayerController.h"
+#include "Gamemode/CH4ChatGameMode.h"
 #include "Net/UnrealNetwork.h"
 
 
@@ -47,4 +48,3 @@ void ACH4ChatGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 
 	DOREPLIFETIME(ACH4ChatGameState, ChatHistory);
 }
-

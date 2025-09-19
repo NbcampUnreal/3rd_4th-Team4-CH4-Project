@@ -28,13 +28,13 @@ void ACH4PlayerController::BeginPlay()
 		}
 	}
 
-	if (HUDWidgetClass)
+	if (IsLocalController() && HUDWidgetClass)
 	{
-		UUserWidget* HUDWidget = CreateWidget<UUserWidget>(this, HUDWidgetClass);
+		UCH4UserWidget* HUDWidget = CreateWidget<UCH4UserWidget>(this, HUDWidgetClass);
 		if (HUDWidget)
 		{
 			HUDWidget->AddToViewport();
-			MyHUDWidget = Cast<UCH4UserWidget>(HUDWidget); // HUDWidget에 UpdateMatchTime 함수 정의
+			MyHUDWidget = HUDWidget;
 		}
 	}
 }

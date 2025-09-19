@@ -38,6 +38,15 @@ public:
 	/** 최대 AI 생성 수 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Replicated, Category="AI")
 	int32 MaxAISpawn;
+	
+	UPROPERTY(ReplicatedUsing=OnRep_FinalResult, BlueprintReadOnly, Category="Game")
+	EWinTeam FinalResult = EWinTeam::None;
+	
+	UFUNCTION()
+	void OnRep_FinalResult();
+
+	void SetFinalResult(EWinTeam NewResult);
+
 
 	/** 매치 상태 변경 */
 	void SetMatchState(EMatchTypes NewMatchType);

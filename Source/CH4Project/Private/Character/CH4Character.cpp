@@ -9,6 +9,9 @@
 #include "InputAction.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "GameMode/CH4GameMode.h"
+#include "PlayerState/CH4PlayerState.h"
+#include "Kismet/GameplayStatics.h"
 
 ACH4Character::ACH4Character()
 {

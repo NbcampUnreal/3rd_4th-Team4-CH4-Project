@@ -44,7 +44,9 @@ public:
     void ClientOnTrapped_Implementation();
 
     // 속도 증가 UI 클라이언트용
+    UFUNCTION(Client, Reliable)
     void ClientShowSpeedBoostUI();
+    void ClientShowSpeedBoostUI_Implementation();
 
 protected:
     // 캡슐 충돌 이벤트
@@ -66,18 +68,18 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, ReplicatedUsing = OnRep_HeldItem, Category = "Item")
     UBaseItem* HeldItem;
 
-    // HeldItem 값이 변경될 때 자동 호출
+    // HeldItem 값이 변경될 때 자동으로 호출되는 함수
     UFUNCTION()
     void OnRep_HeldItem();
 
     // 복제 등록
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-    // 블루프린트에서 구현 아이템 사용 시 효과
+    // 블루프린트에서 구현하는 아이템 사용 효과 이벤트
     UFUNCTION(BlueprintImplementableEvent, Category = "Item|Effect")
     void OnItemUsed(UBaseItem* Item);
 
-    // 소유자 UI: 속도 증가 표시
+    // 소유자 UI: 속도 증가 표시 (블루프린트에서 구현)
     UFUNCTION(BlueprintImplementableEvent, Category = "Item|UI")
     void ShowSpeedBoostUI();
 
