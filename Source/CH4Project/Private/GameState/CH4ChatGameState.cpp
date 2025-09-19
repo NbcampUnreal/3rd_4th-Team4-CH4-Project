@@ -8,7 +8,7 @@ void ACH4ChatGameState::Multicast_BroadcastChat_Implementation(const FString& Se
 {
 	AddMessageToHistory(SenderPlayerName, Message);
 
-	// ¸ğµç ÇÃ·¹ÀÌ¾î¿¡°Ô ÄÁÆ®·Ñ·¯ Á¦°ø
+	// ëª¨ë“  í”Œë ˆì´ì–´ì—ê²Œ ì»¨íŠ¸ë¡¤ëŸ¬ ì œê³µ
 	UWorld* World = GetWorld();
 	if (!World) return;
 
@@ -29,7 +29,7 @@ void ACH4ChatGameState::Multicast_BroadcastChat_Implementation(const FString& Se
 
 void ACH4ChatGameState::AddMessageToHistory(const FString& Sender, const FString& Message)
 {
-	// »õ·Î¿î ¸Ş½ÃÁö ³»¿ª¿¡ Ãß°¡
+	// ìƒˆë¡œìš´ ë©”ì‹œì§€ ë‚´ì—­ì— ì¶”ê°€
 	FChatMessage NewMsg;
 	NewMsg.Sender = Sender;
 	NewMsg.Message = Message;

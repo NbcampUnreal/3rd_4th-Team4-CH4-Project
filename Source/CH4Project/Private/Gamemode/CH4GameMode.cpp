@@ -37,8 +37,9 @@ void ACH4GameMode::BeginPlay()
 
 
 
+	AssignRoles();
 	
-	GetWorldTimerManager().SetTimer(GameStartTimerHandle, this, &ACH4GameMode::AssignRoles, 5.f, false);
+	//GetWorldTimerManager().SetTimer(GameStartTimerHandle, this, &ACH4GameMode::AssignRoles, 5.f, false);
 	//추후 딜레이 수정 후 실제 플레이어들이 포함되는 테스트가 필요.
 	//로비 -> 게임레벨 구조라면 기본 플레이어 컨트롤러가 이미 서버에서 관리 중이기 때문에 완성 후 딜레이를 줄이는 것은 큰 문제는 없을 것으로 추정됨.
 	//Only Local Player Controllers can be assigned to widgets. BP_CH4PlayerController_C_0 is not a Local Player Controller. 이런 에러 문구가 뜨며, 추후 플레이어 컨트롤러에서
@@ -47,8 +48,7 @@ void ACH4GameMode::BeginPlay()
 	//디폴트 폰 클래스를 추가하면 기본 스폰된 캐릭터들이 플레이어 스타트 지점에 플레이어 수 만큼 캐릭터들이 스폰되어 있기 때문에 초기 시작 화면이 어색함.
  
 
-	//GetWorldTimerManager().SetTimer(GameStartTimerHandle, this, &ACH4GameMode::TestAssignRoles8Players, 10.f, false);
-	//테스트용 로직에선 플레이어 컨트롤러가 로드된 이후에 스폰해야하기 때문에 10초로 설정
+
 
 	StartItemSpawnTimer();
 
@@ -507,9 +507,9 @@ void ACH4GameMode::SpawnActors(TArray<TSubclassOf<APawn>> AIClasses, float InAIS
 		// 스폰
 		FActorSpawnParameters SpawnParams;
 		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-		//FVector NavSpawnLoc = RandomPoint.Location;
-		//NavSpawnLoc.Z += 50.f;
-		APawn* NewAI = GetWorld()->SpawnActor<APawn>(AIClass, AdjustedLocation, FRotator::ZeroRotator, SpawnParams);
+		FVector NavSpawnLoc = RandomPoint.Location;
+		NavSpawnLoc.Z += 50.f;
+		APawn* NewAI = GetWorld()->SpawnActor<APawn>(AIClass, NavSpawnLoc, FRotator::ZeroRotator, SpawnParams);
 		if (NewAI)
 		{
 			SpawnedCount++;
@@ -577,7 +577,7 @@ void ACH4GameMode::SpawnActors(TArray<TSubclassOf<APawn>> AIClasses, float InAIS
 
 
 
-//동작 테스트용 함수
+//내일 삭제할 로직
 void ACH4GameMode::TestAssignRoles8Players()
 {
 	if (!HasAuthority()) return;
@@ -596,7 +596,7 @@ void ACH4GameMode::TestAssignRoles8Players()
 	CheckControllersAndSpawn(PlayerStates);
 }
 
-
+//삭제할 로직
 void ACH4GameMode::CheckControllersAndSpawn(const TArray<APlayerState*>& PlayerStates)
 {
     bool bAllControllersReady = true;
@@ -684,7 +684,7 @@ void ACH4GameMode::CheckControllersAndSpawn(const TArray<APlayerState*>& PlayerS
 
 
 // 플레이어가 아이템 박스 겹쳤을 때 서버에서 처리 : 마리오카트처럼, 무작위 아이템
-// 추후 플레이어 컨트롤러로 확정될 시 수정 필요
+// 삭제할 로직
 void ACH4GameMode::GivePlayerItem(APlayerController* Player, FName ItemID)
 {
 	// 서버 권한 확인
