@@ -28,7 +28,7 @@ public:
 	UInputAction* SprintAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
-	TSubclassOf<UUserWidget> HUDWidgetClass;
+	TSubclassOf<UCH4UserWidget> HUDWidgetClass;
 	UPROPERTY()
 	UCH4UserWidget* MyHUDWidget;
 protected:
