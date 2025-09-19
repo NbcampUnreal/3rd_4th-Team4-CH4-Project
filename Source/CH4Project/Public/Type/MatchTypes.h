@@ -20,6 +20,15 @@ enum class EPlayerRole : uint8
 	Citizen UMETA(DisplayName="Citizen")
 };
 
+//게임 승패를 저장하는 파트
+UENUM(BlueprintType)
+enum class EWinTeam : uint8
+{
+	None    UMETA(DisplayName="None"),
+	Police  UMETA(DisplayName="Police"),
+	Thief   UMETA(DisplayName="Thief"),
+};
+
 //게임 모드 및, 시간을 추가 변경할 시 추가 수정 가능
 
 //ENUM을 사용한 열거형 방식을 채택했기 때문에 디버그 로그 출력 시 인덱스 순서대로 0, 1, 2, 3...같은 방식으로 출력됨.
