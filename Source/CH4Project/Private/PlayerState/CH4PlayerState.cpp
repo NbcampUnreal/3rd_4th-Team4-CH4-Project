@@ -9,6 +9,11 @@ ACH4PlayerState::ACH4PlayerState()
 	RemainingArrests = 3; //동적 체포 X, MaxArrests는 굳이 수정할 필요 없음.
 	MaxArrests = 3;
 }
+void ACH4PlayerState::BeginPlay()
+{
+	UE_LOG(LogTemp, Display, TEXT("RemainingArrests : %d"), RemainingArrests);
+}
+
 void ACH4PlayerState::SetPlayerRole(EPlayerRole NewRole)
 {
 	if (HasAuthority())

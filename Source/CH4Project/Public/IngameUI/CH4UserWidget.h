@@ -39,6 +39,7 @@ public:
 
 private:
 	FTimerHandle ClearTextTimerHandle;
+	EPlayerRole CurrentRole; 
 
 	void ClearStatusText();
 };
