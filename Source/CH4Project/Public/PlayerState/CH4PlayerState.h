@@ -63,10 +63,13 @@ public:
 	void ClientReceiveRole_Implementation(EPlayerRole NewRole);
 
 	//플레이어 스테이트에서 인벤토리 관리
-	//타 파트에서 구현 시 삭제 필요한 파트
 	UPROPERTY(ReplicatedUsing=OnRep_InventoryUpdated, BlueprintReadOnly, Category="Inventory", meta=(AllowPrivateAccess="true"))
 	TArray<FName> Inventory;
-
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Inventory")
+	int32 MaxInventorySize = 3;
+	
+	UFUNCTION(BlueprintCallable)
 	void AddItemToInventory(FName ItemID);
 
 	
