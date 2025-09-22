@@ -20,6 +20,8 @@ class CH4PROJECT_API ACH4PlayerState : public APlayerState
 public:
 	ACH4PlayerState();
 
+	virtual void BeginPlay() override;
+
 	/** 플레이어 역할 */
 	UPROPERTY(ReplicatedUsing = OnRep_PlayerRole, BlueprintReadOnly)
 	EPlayerRole PlayerRole;
