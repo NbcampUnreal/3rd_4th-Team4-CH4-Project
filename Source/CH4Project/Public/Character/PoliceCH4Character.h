@@ -38,22 +38,6 @@ protected:
     // 전방 구체 트레이스로 가장 가까운 Pawn 하나
     AActor* FindArrestTarget(float TraceDistance = 220.f, float Radius = 60.f) const;
 
-    /* ================= Item Pickup ================= */
-    // 아이템 액터와 겹침 시작 → 서버 지급 시도
-    UFUNCTION() void OnItemBeginOverlap(AActor* OverlappedActor, AActor* OtherActor);
-
-    // 서버: 아이템 지급, 액터 제거
-    UFUNCTION(Server, Reliable)
-    void ServerPickupItem(AActor* ItemActor);
-
-    // 모두: 아이템 사라지는 연출
-    UFUNCTION(NetMulticast, Unreliable)
-    void MulticastPlayPickupFX(AActor* ItemActor);
-
-    // 클라 전용: “아이템 획득” UI
-    UFUNCTION(Client, Reliable)
-    void ClientShowPickupUI();
-
 protected:
     /* ====== 입력 리소스 ====== */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")

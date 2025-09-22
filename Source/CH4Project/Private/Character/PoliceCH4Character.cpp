@@ -22,10 +22,6 @@ APoliceCH4Character::APoliceCH4Character()
 void APoliceCH4Character::BeginPlay()
 {
     Super::BeginPlay();
-
-    // 아이템 오버랩 감지(경찰 본인 캡슐 컴포넌트에 이벤트 건다)
-    // 아이템 상자가 BeginOverlap을 받을 수 있도록 콜리전 세팅 필요(ECC_Pawn or 전용 채널)
-    OnActorBeginOverlap.AddDynamic(this, &APoliceCH4Character::OnItemBeginOverlap);
 }
 
 void APoliceCH4Character::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -123,51 +119,6 @@ void APoliceCH4Character::ClientShowArrestResultUI_Implementation(bool bSuccess)
 {
     // TODO: 블루프린트 위젯 연동
     // ex) 성공: “도둑 체포!”, 실패: “무고 체포 경고”
-}
-
-/* ================ Item Pickup (마리오카트풍) ================ */
-
-void APoliceCH4Character::OnItemBeginOverlap(AActor* OverlappedActor, AActor* OtherActor)
-{
-    if (!OtherActor || OtherActor == this) return;
-
-    // 서버로 지급 요청
-    ServerPickupItem(OtherActor);
-}
-
-void APoliceCH4Character::ServerPickupItem_Implementation(AActor* ItemActor)
-{
-    if (!ItemActor) return;
-
-    // 서버: 인벤토리에 추가하고(PS에 저장), 아이템 제거/리스폰은 GameMode 쪽 정책대로
-    if (APlayerController* MyPC = Cast<APlayerController>(GetController()))
-    {
-        if (ACH4GameMode* GM = GetWorld()->GetAuthGameMode<ACH4GameMode>())
-        {
-            // 아이템 ID를 액터에서 꺼내는 로직이 있다면 사용(여긴 예시로 이름 사용)
-            const FName ItemID(*ItemActor->GetName());
-            GM->GivePlayerItem(MyPC, ItemID);
-        }
-    }
-
-    // 모두에게 아이템이 사라지는 연출
-    MulticastPlayPickupFX(ItemActor);
-
-    // 실제 제거(서버 권위)
-    ItemActor->Destroy();
-
-    // 본인에게만 “아이템 획득” UI
-    ClientShowPickupUI();
-}
-
-void APoliceCH4Character::MulticastPlayPickupFX_Implementation(AActor* ItemActor)
-{
-    // TODO: 사라지는 파티클/사운드
-}
-
-void APoliceCH4Character::ClientShowPickupUI_Implementation()
-{
-    // TODO: 블루프린트 위젯으로 “아이템 획득” 토스트/인벤토리 갱신
 }
 
 /* ================= Trace Helper ================= */
