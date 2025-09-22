@@ -118,9 +118,8 @@ protected:
 private:
 
 	bool bRolesAssigned = false;
-	
 	int32 ExpectedNumPlayers = 0;
-
+	
 	/** 게임 시작 타이머 */
 	FTimerHandle GameStartTimerHandle;
 
@@ -150,7 +149,7 @@ protected:
 
 	// 주기적 스폰 간격 (초)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Item Spawning")
-	float ItemSpawnInterval = 60.f;
+	float ItemSpawnInterval = 20.f;
 
 	// 맵에 스폰된 아이템 액터들
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Item Spawning")

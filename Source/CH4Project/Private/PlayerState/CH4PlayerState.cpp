@@ -114,9 +114,18 @@ void ACH4PlayerState::OnRep_InventoryUpdated()
 void ACH4PlayerState::AddItemToInventory(FName ItemID)
 {
 	if (!HasAuthority()) return; // 서버만 권한
+
+	// 최대 개수 체크
+	if (Inventory.Num() >= MaxInventorySize)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("인벤토리가 가득 찼습니다. (%d/%d)"), Inventory.Num(), MaxInventorySize);
+		return;
+	}
+
 	Inventory.Add(ItemID);
 
 	// Inventory 배열 RepNotify를 통해 클라이언트 UI 동기화
+	OnRep_InventoryUpdated();
 }
 
 void ACH4PlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const

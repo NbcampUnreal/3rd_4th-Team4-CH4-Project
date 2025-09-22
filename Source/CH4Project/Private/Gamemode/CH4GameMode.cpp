@@ -51,14 +51,7 @@ void ACH4GameMode::BeginPlay()
 	// + 실제론 로비 플레이어 컨트롤러, 플레이어스테이트 등 파트가 독립적으로 구현되었기 때문에 딜레이는 필수적으로 있어야 할 것으로 보임.
 	//추가로 기존 5초 딜레이 중 추가적인 인게임 위젯으로 5초간 대기 시간 동안 역할 설명 및 로딩 화면 표현이 필요할 것으로 보임.
 	//디폴트 폰 클래스를 추가하면 기본 스폰된 캐릭터들이 플레이어 스타트 지점에 플레이어 수 만큼 캐릭터들이 스폰되어 있기 때문에 초기 시작 화면이 어색함.
- 
-
-
-
-	if (HasAuthority())
-	{
-		StartItemSpawnTimer();
-	}
+	
 }
 
 // PostLogin 수정
@@ -72,6 +65,11 @@ void ACH4GameMode::PostLogin(APlayerController* NewPlayer)
 	FTimerHandle DummyHandle;
     GetWorldTimerManager().SetTimer(DummyHandle, this, &ACH4GameMode::TryAssignRoles, 5.0f, false);
 	//딜레이가 없을 시 정상적인 스폰이 불가, 내부 로딩 UI가 필요할 것으로 추정.
+
+	if (HasAuthority())
+	{
+		StartItemSpawnTimer();
+	}
 }
 
 // 모든 플레이어가 접속했는지 확인 후 AssignRoles 호출
@@ -225,22 +223,6 @@ void ACH4GameMode::HandleGameOver()
 	//GetWorldTimerManager().ClearTimer(MatchTimerHandle);
 	//아이템 스폰 타이머도 초기화 필요.
 	
-	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
-	{
-		ACH4PlayerController* MyPC = Cast<ACH4PlayerController>(It->Get());
-		if (MyPC && MyPC->MyHUDWidget)
-		{
-			if (MyPC->MyHUDWidget->IsInViewport())
-			{
-				MyPC->MyHUDWidget->RemoveFromParent();
-			}
-			MyPC->MyHUDWidget = nullptr;
-		}
-
-		//아이템 스폰 타이머 클리어로 추가 아이템 스폰 중지.
-		GetWorldTimerManager().ClearTimer(ItemSpawnTimerHandle);
-
-	}
 
  // AI 캐릭터 및 플레이어 캐릭터 삭제용 로직
  // 만약 로비에서 캐릭터가 움직이며 대기하는 구조라면 불필요한 로직이나, 그렇게 될 시 래그돌, 혹은 사망 애니메이션으로 가사 상태로 캐릭터가 구현되어야 할 듯
@@ -291,6 +273,23 @@ void ACH4GameMode::HandleGameOver()
 		}
 	}
 	
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		ACH4PlayerController* MyPC = Cast<ACH4PlayerController>(It->Get());
+		if (MyPC && MyPC->MyHUDWidget)
+		{
+			if (MyPC->MyHUDWidget->IsInViewport())
+			{
+				MyPC->MyHUDWidget->RemoveFromParent();
+			}
+			MyPC->MyHUDWidget = nullptr;
+		}
+
+		//아이템 스폰 타이머 클리어로 추가 아이템 스폰 중지.
+		GetWorldTimerManager().ClearTimer(ItemSpawnTimerHandle);
+
+	}
+	
 	ClearItems();
 	UE_LOG(LogTemp, Warning, TEXT("게임 오버 처리 완료"));
 
@@ -298,6 +297,8 @@ void ACH4GameMode::HandleGameOver()
 
 void ACH4GameMode::RestartGame()
 {
+	if (!HasAuthority()) return;
+
 	ACH4GameStateBase* GS = GetGameState<ACH4GameStateBase>();
 	if (GS)
 	{
@@ -327,6 +328,7 @@ void ACH4GameMode::RestartGame()
 
 		UE_LOG(LogTemp, Warning, TEXT("=========================="));
 	}
+	
 }
 
 
@@ -630,19 +632,12 @@ void ACH4GameMode::SpawnActors(TArray<TSubclassOf<APawn>> AIClasses, float InAIS
 
 
 
-// 플레이어가 아이템 박스 겹쳤을 때 서버에서 처리 : 마리오카트처럼, 무작위 아이템
+// 추후 아이템 파트의 작업에 따라 추가적인 수정이 필요할 것으로 보임.
+// 캐릭터 파트에서 아이템 습득 로직을 통해 이 함수를 호출하는 것으로 테스트가 필요.
 void ACH4GameMode::GivePlayerItem(APlayerController* Player, FName ItemID)
 {
 	// 서버 권한 확인
 	if (!HasAuthority() || !Player) return;
-
-	// 서버에서 GameState 가져오기
-	ACH4GameStateBase* GS = GetWorld() ? GetWorld()->GetGameState<ACH4GameStateBase>() : nullptr;
-	if (!GS)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("GivePlayerItem: GameState가 없습니다."));
-		return;
-	}
 
 	// PlayerState 가져오기
 	if (ACH4PlayerState* PS = Player->GetPlayerState<ACH4PlayerState>())
@@ -716,7 +711,8 @@ void ACH4GameMode::SpawnItems()
 
 		if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility))
 		{
-			AdjustedLocation = Hit.Location;
+			const float ItemZOffset = 30.f;
+			AdjustedLocation = Hit.Location + FVector(0.f, 0.f, ItemZOffset);
 		}
 
 		// 스폰
