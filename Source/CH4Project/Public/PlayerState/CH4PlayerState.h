@@ -62,12 +62,14 @@ public:
 	void ClientReceiveRole(EPlayerRole NewRole);
 	void ClientReceiveRole_Implementation(EPlayerRole NewRole);
 
-	//플레이어 스테이트에서 인벤토리 관리 : 게임 모드에서 온전히 관리하는 쪽이 안전함.
-	//따라서 핵심은 게임모드에서 구현 후, 플레이어스테이트, 혹은 플레이어 컨트롤러에서 관리 가능하도록 확장성을 확보.
-	UPROPERTY(ReplicatedUsing=OnRep_InventoryUpdated, BlueprintReadOnly)
+	//플레이어 스테이트에서 인벤토리 관리
+	//타 파트에서 구현 시 삭제 필요한 파트
+	UPROPERTY(ReplicatedUsing=OnRep_InventoryUpdated, BlueprintReadOnly, Category="Inventory", meta=(AllowPrivateAccess="true"))
 	TArray<FName> Inventory;
 
 	void AddItemToInventory(FName ItemID);
+
+	
 
 	
 	UFUNCTION()

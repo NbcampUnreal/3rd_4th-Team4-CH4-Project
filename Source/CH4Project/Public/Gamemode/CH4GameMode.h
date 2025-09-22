@@ -5,8 +5,6 @@
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
 #include "Type/MatchTypes.h"
-#include "Kismet/GameplayStatics.h"
-#include "SpawnVolume/BaseSpawnVolume.h"
 #include "SpawnVolume/ItemSpawnVolume.h"
 #include "CH4GameMode.generated.h"
 
@@ -62,8 +60,8 @@ public:
 	void OnAICaught(APlayerController* ArrestingPlayer, APawn* AI, bool bIsCitizen);
 	void HandleArrest(APlayerController* ArrestingPlayer, APawn* TargetPawn);
 
-	/** 최대 체포 횟수 갱신 */
-	void UpdateMaxArrests();
+	/* 최대 체포 횟수 갱신 */
+	//void UpdateMaxArrests();
 
 	/** 승리 조건 체크 */
 	void CheckWinCondition();
@@ -80,19 +78,14 @@ public:
 
 	FVector GetRandomSpawnLocation(float Radius);
 	*/
-	
+
+	//로그인 시 플레이어 스테이트로 총 인원을 체크한 후 AssingRoles 콜하는 함수
+	void TryAssignRoles();
 
 
 	
 	//캐릭터 스폰 로직 통합 및 개선 테스트 버전
 	void SpawnActors(TArray<TSubclassOf<APawn>> AIClasses, float AISpawnRadius);
-
-	
-	//실제 동작하는지 테스트 용 함수
-	void TestAssignRoles8Players();
-
-	
-	void CheckControllersAndSpawn(const TArray<APlayerState*>& PlayerStates);
 
 
 
@@ -101,7 +94,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spawning")
 	TArray<AItemSpawnVolume*> ItemSpawnVolumes;
 protected:
-	
+
+
 	
 	//BP 게임모드에서 스폰할 각각의 캐릭터를 에디터 상으로 선정해야함.
 	UPROPERTY(EditDefaultsOnly, Category="Spawning")
@@ -112,7 +106,7 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category="Spawning|Player")
 	TSubclassOf<APawn> ThiefPawnClass;
-	//
+	
 
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI")
@@ -122,6 +116,11 @@ protected:
 	FTimerHandle UnlockPlayerInputTimerHandle;
 	
 private:
+
+	bool bRolesAssigned = false;
+	
+	int32 ExpectedNumPlayers = 0;
+
 	/** 게임 시작 타이머 */
 	FTimerHandle GameStartTimerHandle;
 
@@ -135,7 +134,7 @@ private:
 
 	/** 도전 횟수 체크 */
 	void CheckArrestLimit(ACH4PlayerState* PolicePS);
-
+	
 	
 	//아이템 스폰 관리용 프라이빗
 protected:

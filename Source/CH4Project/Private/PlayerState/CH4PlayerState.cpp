@@ -89,8 +89,6 @@ void ACH4PlayerState::OnRep_RemainingArrests()
 void ACH4PlayerState::OnRep_MaxArrests()
 {
 	UE_LOG(LogTemp, Log, TEXT("OnRep_MaxArrests: 최대 체포 %d"), MaxArrests);
-	// UI/위젯 즉시 갱신
-	// RoleWidget->UpdateMaxArrests(MaxArrests);
 }
 
 
@@ -98,8 +96,7 @@ void ACH4PlayerState::ClientReceiveRole_Implementation(EPlayerRole NewRole)
 {
 	PlayerRole = NewRole; // 로컬에서도 바로 반영
 	UE_LOG(LogTemp, Log, TEXT("ClientReceiveRole: 내 역할 %d"), (int32)PlayerRole);
-	// UI/위젯 즉시 갱신 가능
-	// RoleWidget->UpdateRole(PlayerRole);
+	// 추후 해당되는 위젯 파트에  추가 가능.
 }
 
 //캐릭터의 인벤토리 업데이트 파트.

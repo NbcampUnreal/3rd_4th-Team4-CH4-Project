@@ -11,7 +11,7 @@ ACH4GameStateBase::ACH4GameStateBase()
 	MatchTypes = EMatchTypes::WaitingToStart;
 	RemainingThieves = 0 ;
 	RemainingPolice = 0 ;
-	MatchTime = 30.f; //테스트 용으로 20초로 설정해두었음.
+	MatchTime = 600.f; //테스트 용으로 수정 가능
 	SpawnedAI = 0;
 	MaxAISpawn = 10;
 }
