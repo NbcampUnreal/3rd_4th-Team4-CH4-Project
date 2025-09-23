@@ -31,6 +31,7 @@ public:
 	TSubclassOf<UCH4UserWidget> HUDWidgetClass;
 	UPROPERTY()
 	UCH4UserWidget* MyHUDWidget;
+	
 protected:
 	virtual void BeginPlay() override;
 };

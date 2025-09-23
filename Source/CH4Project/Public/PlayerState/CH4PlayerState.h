@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerState.h"
 #include "Type/MatchTypes.h"
+#include "Item/BaseItem.h"
 #include "CH4PlayerState.generated.h"
 
 /**
@@ -66,14 +67,16 @@ public:
 
 	//플레이어 스테이트에서 인벤토리 관리
 	UPROPERTY(ReplicatedUsing=OnRep_InventoryUpdated, BlueprintReadOnly, Category="Inventory", meta=(AllowPrivateAccess="true"))
-	TArray<FName> Inventory;
+	TArray<UBaseItem*> Inventory; // UBaseItem으로 수정. 클라이언트 RPC로 위젯을 공유해야할 듯.
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Inventory")
-	int32 MaxInventorySize = 3;
+	int32 MaxInventorySize = 2;
 	
-	UFUNCTION(BlueprintCallable)
-	void AddItemToInventory(FName ItemID);
-
+	UFUNCTION(BlueprintCallable, Category="Inventory")
+	void AddItemToInventory(class UBaseItem* NewItem);
+	
+	UFUNCTION(Client, Reliable)
+	void UpdateKillFeedUI(const FString& KillerName, const FString& VictimName);
 	
 
 	

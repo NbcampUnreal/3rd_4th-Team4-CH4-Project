@@ -224,8 +224,7 @@ void ACH4GameMode::HandleGameOver()
 	//아이템 스폰 타이머도 초기화 필요.
 	
 
- // AI 캐릭터 및 플레이어 캐릭터 삭제용 로직
- // 만약 로비에서 캐릭터가 움직이며 대기하는 구조라면 불필요한 로직이나, 그렇게 될 시 래그돌, 혹은 사망 애니메이션으로 가사 상태로 캐릭터가 구현되어야 할 듯
+	// AI 캐릭터 및 플레이어 캐릭터 삭제용 로직
 	TArray<APawn*> PawnsToDestroy;
 
 	for (TActorIterator<APawn> It(GetWorld()); It; ++It)
@@ -262,17 +261,8 @@ void ACH4GameMode::HandleGameOver()
 			TPS->SetPlayerRole(EPlayerRole::Unassigned);
 		}
 	}
-	
-	//기존 상단에서 타 파트를 우선 실행한 후, 로비 귀환, 및 결과 위젯 실행을 위해 위치 변경.
-	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
-	{
-		APlayerController* PC = It->Get();
-		if (PC)
-		{
-			PC->ClientTravel(TEXT("/Game/Maps/LobbyMap.umap"), TRAVEL_Absolute);
-		}
-	}
-	
+
+	/* 로비로 넘어간 후 플레이어 컨트롤러의 UI가 남아있지 않을 경우 삭제 가능.
 	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
 	{
 		ACH4PlayerController* MyPC = Cast<ACH4PlayerController>(It->Get());
@@ -289,10 +279,21 @@ void ACH4GameMode::HandleGameOver()
 		GetWorldTimerManager().ClearTimer(ItemSpawnTimerHandle);
 
 	}
-	
+	*/
+
+	//게임 모드 내 모든 타이머 초기화
+	GetWorldTimerManager().ClearAllTimersForObject(this);
 	ClearItems();
 	UE_LOG(LogTemp, Warning, TEXT("게임 오버 처리 완료"));
-
+	
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		APlayerController* PC = It->Get();
+		if (PC)
+		{
+			PC->ClientTravel(TEXT("LobbyMap"), TRAVEL_Absolute);
+		}
+	}
 }
 
 void ACH4GameMode::RestartGame()
@@ -332,7 +333,7 @@ void ACH4GameMode::RestartGame()
 }
 
 
-void ACH4GameMode::OnThiefCaught(APawn* ThiefPawn) // 추후 정상적으로 해당 캐릭터가 해제되는지 확인 필요.
+void ACH4GameMode::OnThiefCaught(APawn* ThiefPawn, APlayerController* ArrestingPlayer)
 {
 	if (!HasAuthority()) return;
 
@@ -341,18 +342,30 @@ void ACH4GameMode::OnThiefCaught(APawn* ThiefPawn) // 추후 정상적으로 해
 
 	GS->RemainingThieves = FMath::Max(0, GS->RemainingThieves - 1);
 	UE_LOG(LogTemp, Warning, TEXT("도둑 체포됨"));
-	
-	if (ThiefPawn)
-	{
-		AController* Controller = ThiefPawn->GetController();
-		if (Controller)
-		{
-			Controller->UnPossess();
-		}
 
-		ThiefPawn->Destroy();
+	// 도둑 플레이어 스테이트 확보
+	ACH4PlayerState* VictimPS = ThiefPawn->GetController() 
+		? Cast<ACH4PlayerState>(ThiefPawn->GetController()->PlayerState) 
+		: nullptr;
+	
+	// 경찰의 플레이어스테이트 확보 + 실제 UI 출력 이후 어떻게 될 지 테스트 필요함.
+	ACH4PlayerState* PolicePS = Cast<ACH4PlayerState>(ArrestingPlayer->PlayerState);
+
+	if (ThiefPawn->GetController())
+	{
+		ThiefPawn->GetController()->UnPossess();
 	}
 	
+	ThiefPawn->Destroy();
+	//게임모드 파트에서 해당 작업을 삭제해야할 필요성 발생, 만약 래그돌, 죽음 애니메이션이 실행되어야할 경우 즉시 Destroy 하면 안됨.
+	//따라서 캐릭터 파트에서 애니메이션을 실행한 후 몇초 후 자체적으로 Destroy 하도록 구현해야함. -> 타이머 구조로 재구성해야함.
+	
+	// 킬피드 전파
+	if (GS && PolicePS)
+	{
+		GS->AddKillFeed(PolicePS, VictimPS);
+	}
+
 	CheckWinCondition();
 }
 
@@ -362,13 +375,21 @@ void ACH4GameMode::OnAICaught(APlayerController* ArrestingPlayer, APawn* AI, boo
 {
 	if (!AI || !ArrestingPlayer) return;
 
-	AI->Destroy();
-
+	// 경찰 PlayerState 가져오기
 	ACH4PlayerState* PolicePS = ArrestingPlayer->GetPlayerState<ACH4PlayerState>();
 	if (!PolicePS) return;
+	
+	AI->Destroy();
 
 	if (bIsCitizen)
 	{
+		ACH4GameStateBase* GS = GetGameState<ACH4GameStateBase>();
+		if (GS)
+		{
+			GS->AddKillFeed(PolicePS, nullptr, TEXT("AI Citizen"));
+		}
+
+		// 경찰 RemainingArrests 감소
 		PolicePS->RemainingArrests--;
 		CheckArrestLimit(PolicePS);
 	}
@@ -389,7 +410,7 @@ void ACH4GameMode::HandleArrest(APlayerController* ArrestingPlayer, APawn* Targe
 	switch (MPS->PlayerRole)
 	{
 	case EPlayerRole::Thief:
-		OnThiefCaught(TargetPawn);
+		OnThiefCaught(TargetPawn, ArrestingPlayer);
 		break;
 
 	case EPlayerRole::Police:
@@ -419,10 +440,13 @@ void ACH4GameMode::CheckArrestLimit(ACH4PlayerState* PolicePS) // 직관적인 �
     		if (Pawn)
     		{
     			Pawn->Destroy();
+    			ACH4GameStateBase* GS = GetGameState<ACH4GameStateBase>();
+    			GS->RemainingPolice--;
     		}
     	}
 
     	PolicePS->SetPlayerRole(EPlayerRole::Unassigned);
+    	CheckWinCondition();
     }
 }
 
@@ -630,20 +654,23 @@ void ACH4GameMode::SpawnActors(TArray<TSubclassOf<APawn>> AIClasses, float InAIS
 }
 
 
-
-
 // 추후 아이템 파트의 작업에 따라 추가적인 수정이 필요할 것으로 보임.
 // 캐릭터 파트에서 아이템 습득 로직을 통해 이 함수를 호출하는 것으로 테스트가 필요.
-void ACH4GameMode::GivePlayerItem(APlayerController* Player, FName ItemID)
+// 혹은 캐릭터 파트에서 AddItemToInventory 함수를 직접 스폰하는 과정이 필요함.
+void ACH4GameMode::GivePlayerItem(APlayerController* Player, UBaseItem* Item)
 {
 	// 서버 권한 확인
-	if (!HasAuthority() || !Player) return;
+	if (!HasAuthority() || !Player || !Item)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("GivePlayerItem: 유효하지 않은 입력"));
+		return;
+	}
 
 	// PlayerState 가져오기
 	if (ACH4PlayerState* PS = Player->GetPlayerState<ACH4PlayerState>())
 	{
-		PS->AddItemToInventory(ItemID);
-		UE_LOG(LogTemp, Log, TEXT("Gave Item %s to Player %s"), *ItemID.ToString(), *PS->GetPlayerName());
+		PS->AddItemToInventory(Item);
+		UE_LOG(LogTemp, Log, TEXT("Gave Item %s to Player %s"), *Item->GetName(), *PS->GetPlayerName());
 	}
 	else
 	{
@@ -651,11 +678,10 @@ void ACH4GameMode::GivePlayerItem(APlayerController* Player, FName ItemID)
 	}
 }
 
+
 //마리오카트처럼 랜덤 아이템 스폰 방식
 //서버 내에서만 관리할 스폰 로직으로, 게임 스테이트, 플레이어 스테이트에서 관리하지 않음.
-//1분마다 기존 스폰된 아이템 박스를 삭제하고, 새로운 위치에 아이템 박스를 스폰하는 시스템.
-
-	
+//1분마다 기존 스폰된 아이템 박스를 삭제하고, 새로운 위치에 아이템 박스를 스폰
 
 //네비매쉬가 존재할 경우만 아이템을 스폰하는 예시 로직.
 void ACH4GameMode::SpawnItems()
