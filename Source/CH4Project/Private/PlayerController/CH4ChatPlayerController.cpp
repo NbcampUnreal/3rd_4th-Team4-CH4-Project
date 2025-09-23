@@ -1,6 +1,7 @@
 #include "PlayerController/CH4ChatPlayerController.h"
 #include "PlayerState/CH4ChatPlayerState.h"
 #include "Gamemode/CH4ChatGameMode.h"
+#include "OutGameUI/CH4ChatUserWidget.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/Image.h"
 #include "Engine/Texture2D.h"
@@ -16,26 +17,43 @@ ACH4ChatPlayerController::ACH4ChatPlayerController()
 void ACH4ChatPlayerController::BeginPlay()
 {
     Super::BeginPlay();
+    if (!IsLocalController()) return;
 
-    if (IsLocalController() && LobbyWidgetClass)
+    bShowMouseCursor = true;
+    FInputModeGameAndUI Mode;
+    Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+    Mode.SetHideCursorDuringCapture(false);
+    SetInputMode(Mode);
+
+    if (LobbyWidgetClass)
     {
-        if (UUserWidget* LobbyUI = CreateWidget<UUserWidget>(this, LobbyWidgetClass))
+        if (UCH4ChatUserWidget* LobbyUI = CreateWidget<UCH4ChatUserWidget>(this, LobbyWidgetClass))
         {
             LobbyUI->AddToViewport();
+
+            FInputModeGameAndUI Mode2;
+            Mode2.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+            Mode2.SetHideCursorDuringCapture(false);
+            Mode2.SetWidgetToFocus(LobbyUI->TakeWidget());
+            SetInputMode(Mode2);
         }
     }
 }
 
-// 준비 상태 호출
-void ACH4ChatPlayerController::Server_SetReady_Implementation(bool bNewReady)
+// 준비 상태
+void ACH4ChatPlayerController::SetReady(bool bNewReady)
 {
-	if (ACH4ChatPlayerState* PS = GetPlayerState<ACH4ChatPlayerState>())
-	{
-		PS->ServerSetReady(bNewReady);
-	}
+    if (IsLocalController())
+        Server_SetReady(bNewReady);
 }
 
-// 클라이언트 결과 화면
+// 서버에서 준비 상태 확인
+void ACH4ChatPlayerController::Server_SetReady_Implementation(bool bNewReady)
+{
+    if (ACH4ChatPlayerState* PS = GetPlayerState<ACH4ChatPlayerState>())
+        PS->ServerSetReady(bNewReady);
+}
+
 void ACH4ChatPlayerController::ShowResultScreen_Implementation(bool bIsWin)
 {
     if (!ResultScreen) return;
@@ -48,15 +66,25 @@ void ACH4ChatPlayerController::ShowResultScreen_Implementation(bool bIsWin)
         {
             UTexture2D* WinTex = LoadObject<UTexture2D>(nullptr, TEXT("/Game/OutGameUI/Win.Win"));
             UTexture2D* LoseTex = LoadObject<UTexture2D>(nullptr, TEXT("/Game/OutGameUI/Lose.Lose"));
+
             if (WinTex && LoseTex)
             {
                 ResultImage->SetBrushFromTexture(bIsWin ? WinTex : LoseTex);
             }
         }
+
+        bShowMouseCursor = true;
+        FInputModeGameAndUI Mode;
+        Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+        Mode.SetHideCursorDuringCapture(false);
+        Mode.SetWidgetToFocus(ResultUI->TakeWidget());
+        SetInputMode(Mode);
     }
 }
 
-// 로비로 돌아가기
+
+
+// 로비로 복귀
 void ACH4ChatPlayerController::ReturnLobby()
 {
     UGameplayStatics::OpenLevel(this, FName("LobbyMap"));
