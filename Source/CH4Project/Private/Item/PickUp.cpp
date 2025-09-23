@@ -4,7 +4,8 @@
 
 APickUp::APickUp()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bStartWithTickEnabled = true;
 	bReplicates = true;
 
 	StaticMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
@@ -17,6 +18,27 @@ void APickUp::BeginPlay()
 	Super::BeginPlay();
 
 	OnActorBeginOverlap.AddDynamic(this, &APickUp::OnOverlap);
+	
+	StartLocation = GetActorLocation();
+	RunningTime = 0.f;
+}
+
+void APickUp::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+
+	if (IsNetMode(NM_DedicatedServer)) return; // 서버는 안 움직임
+	UE_LOG(LogTemp, Warning, TEXT("Tick 실행 중"));
+	// 회전
+	AddActorLocalRotation(FRotator(0.f, RotationSpeed * DeltaSeconds, 0.f));
+
+	// 위아래 이동
+	RunningTime += DeltaSeconds;
+	float OffsetZ = FMath::Sin(RunningTime * BobSpeed) * BobHeight;
+
+	FVector NewLocation = StartLocation;
+	NewLocation.Z += OffsetZ;
+	SetActorLocation(NewLocation);
 }
 
 void APickUp::OnOverlap(AActor* OverlapActor, AActor* OtherActor)
@@ -27,6 +49,8 @@ void APickUp::OnOverlap(AActor* OverlapActor, AActor* OtherActor)
 	{
 		if (ItemClass)
 		{
+			UBaseItem* NewItem = NewObject<UBaseItem>(Character, ItemClass);
+			//Character->AddToInventory(NewItem);
 			Destroy();
 		}
 	}

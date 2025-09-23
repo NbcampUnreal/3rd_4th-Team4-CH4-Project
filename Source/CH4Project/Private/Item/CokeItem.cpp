@@ -10,6 +10,8 @@ void UCokeItem::UseItem_Implementation(ACH4Character* Character)
     {
         return;
     }
+    
+    if (!Character->HasAuthority()) return;
 
     float OriginalSpeed = Character->GetCharacterMovement()->MaxWalkSpeed;
     Character->GetCharacterMovement()->MaxWalkSpeed = OriginalSpeed + 300.f;
