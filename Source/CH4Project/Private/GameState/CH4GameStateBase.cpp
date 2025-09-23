@@ -3,8 +3,7 @@
 #include "Gamemode/CH4GameMode.h"
 #include "PlayerController/CH4PlayerController.h"
 #include "IngameUI/CH4UserWidget.h"
-
-//위젯 인클루드 필요
+#include "PlayerState/CH4PlayerState.h"
 
 ACH4GameStateBase::ACH4GameStateBase()
 {
@@ -103,6 +102,52 @@ void ACH4GameStateBase::OnRep_FinalResult()
 	// 클라에서 UI 갱신 등 처리 가능
 }
 
+//킬피드 파트 테스트 필요.
+void ACH4GameStateBase::AddKillFeed(ACH4PlayerState* Police, ACH4PlayerState* Thief, const FString& VictimOverrideName)
+{
+	if (!HasAuthority()) return;
+
+	FKillFeedEntry Entry;
+	Entry.KillerName = Police ? Police->GetPlayerName() : TEXT("???");
+
+	// Victim의 플레이어 스테이트가 nullptr이면 override name 사용, 없으면 AI 시민으로 Citizen을 사용함.
+	if (Thief)
+	{
+		Entry.VictimName = Thief->GetPlayerName();
+	}
+	else if (!VictimOverrideName.IsEmpty())
+	{
+		Entry.VictimName = VictimOverrideName;
+	}
+	else
+	{
+		Entry.VictimName = TEXT("???");
+	}
+
+	KillFeed.Add(Entry);
+
+	OnRep_KillFeed();
+}
+
+
+
+void ACH4GameStateBase::OnRep_KillFeed()
+{
+	if (KillFeed.Num() > 0)
+	{
+		const FKillFeedEntry& LastEntry = KillFeed.Last();
+
+		// 모든 PlayerState에 알림
+		for (APlayerState* PS : PlayerArray)
+		{
+			if (ACH4PlayerState* MyPS = Cast<ACH4PlayerState>(PS))
+			{
+				MyPS->UpdateKillFeedUI(LastEntry.KillerName, LastEntry.VictimName);
+			}
+		}
+	}
+}
+
 void ACH4GameStateBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
@@ -114,4 +159,6 @@ void ACH4GameStateBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	DOREPLIFETIME(ACH4GameStateBase, SpawnedAI);
 	DOREPLIFETIME(ACH4GameStateBase, MaxAISpawn);
 	DOREPLIFETIME(ACH4GameStateBase, FinalResult);
+	DOREPLIFETIME(ACH4GameStateBase, KillFeed);
+
 }

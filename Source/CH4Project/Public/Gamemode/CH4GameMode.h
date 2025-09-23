@@ -12,26 +12,9 @@
 class ACH4PlayerState;
 class ACH4GameStateBase;
 class APawn;
+class UBaseItem;
 
-/**
-
-AI 및 플레이어 사망 시 구속되거나 캐릭터 삭제 로직 구현 필요.
--사망 시 Destroy를 호출, 만약 체포로 변환할 경우 Type의 파트를 추가해서 관리해야할 필요 있음. (기본으로 Destroy로 구현 예정)
--OnThiefCaught를 통한 도둑 체포 시 로직
--OnAICaught를 통한 시민 오인 체포 시 로직
--HandleArrest로 위 두 로직을 통합 호출하는 방식으로 관리 중.
-
-게임 종료 조건이 게임 스테이트에서 만족 시 게임 모드에서 레벨 초기화 및 게임 로비로 전환 로직 (지금은 단판으로 구현 되었음)
--일반적으로 로비로 전환하는 단판제 시스템이 적합할 것으로 보임.
--레벨 내의 모든 폰을 Destroy 처리한 후 레벨을 새로 로드할 수 있도록 로비로 전환, 이후 로비 위젯을 재출력하는 구조가 좋을 듯.
-
-게임의 승패에 따른 UI 출력 필요
--일정 시간, 혹은 로비로 이동 버튼을 클릭 시 위젯 삭제 후 로비 이동 로직 구현 필요
-
-경찰의 도둑 체포와 체포 중 시민 오인 체포 시 카운팅 및 사직 처리 로직 구현 필요
--CheckArrestLimit와 UpdateMaxArrests 를 통한 AI 및 캐릭터 비례 시도 횟수 동적화 로직 구현
--추후 테스트 필요
-
+/*
 
  */
 UCLASS()
@@ -56,7 +39,7 @@ public:
 	void UpdateMatchTime();
 
 	/** 체포 처리 */
-	void OnThiefCaught(APawn* ThiefPawn);
+	void OnThiefCaught(APawn* ThiefPawn, APlayerController* ArrestingPlayer);
 	void OnAICaught(APlayerController* ArrestingPlayer, APawn* AI, bool bIsCitizen);
 	void HandleArrest(APlayerController* ArrestingPlayer, APawn* TargetPawn);
 
@@ -86,16 +69,14 @@ public:
 	
 	//캐릭터 스폰 로직 통합 및 개선 테스트 버전
 	void SpawnActors(TArray<TSubclassOf<APawn>> AIClasses, float AISpawnRadius);
+	
 
-
-
-	void GivePlayerItem(APlayerController* Player, FName ItemID);
+	UFUNCTION(BlueprintCallable, Category="Inventory")
+	void GivePlayerItem(APlayerController* Player, class UBaseItem* Item);
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spawning")
 	TArray<AItemSpawnVolume*> ItemSpawnVolumes;
 protected:
-
-
 	
 	//BP 게임모드에서 스폰할 각각의 캐릭터를 에디터 상으로 선정해야함.
 	UPROPERTY(EditDefaultsOnly, Category="Spawning")
@@ -106,8 +87,6 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category="Spawning|Player")
 	TSubclassOf<APawn> ThiefPawnClass;
-	
-
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI")
 	float AISpawnRadius = 500.f;
@@ -163,7 +142,7 @@ protected:
 
 	//시작 시 호출하는 아이템 스폰 타이머
 	void StartItemSpawnTimer();
-	
+
 	
 };
 
