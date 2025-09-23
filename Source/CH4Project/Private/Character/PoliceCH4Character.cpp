@@ -7,7 +7,7 @@
 #include "DrawDebugHelpers.h"
 #include "Net/UnrealNetwork.h"
 
-#include "Gamemode/CH4GameMode.h"
+#include "GameMode/CH4GameMode.h"
 #include "GameState/CH4GameStateBase.h"
 #include "PlayerState/CH4PlayerState.h"
 
@@ -41,12 +41,23 @@ void APoliceCH4Character::SetupPlayerInputComponent(UInputComponent* PlayerInput
 
 void APoliceCH4Character::OnArrestInput()
 {
+    if (!IsLocallyControlled()) return;   //소유자만 입력 허용
+    if (bArrestOnCooldown_Local) return;  //로컬 쿨다운 게이트
+
     // 클라 입력 → 서버가 판정
-    ServerTryArrest();
+    ServerTryArrest();                    // 서버에 체포 요청
+    StartArrestCooldown_Local();          //로컬 쿨다운 시작
 }
 
 void APoliceCH4Character::ServerTryArrest_Implementation()
 {
+    //서버 측 유효성/쿨다운 가드
+    APlayerController* MyPC = Cast<APlayerController>(GetController());
+    if (!MyPC) return;                        // 컨트롤러 없으면 무시
+    if (bArrestOnCooldown_Server) return;     // 서버 쿨다운 중이면 무시
+    StartArrestCooldown_Server();             // 서버 쿨다운 시작
+
+
     AActor* Target = FindArrestTarget(ArrestTraceDistance, ArrestTraceRadius);
     bool bSuccess = false;
 
@@ -62,10 +73,7 @@ void APoliceCH4Character::ServerTryArrest_Implementation()
                 // GameMode에 실제 체포 처리 위임(도둑 수 감소, Destroy, 승리 조건 등)
                 if (ACH4GameMode* GM = GetWorld()->GetAuthGameMode<ACH4GameMode>())
                 {
-                    if (APlayerController* MyPC = Cast<APlayerController>(GetController()))
-                    {
-                        GM->HandleArrest(MyPC, TargetPawn);
-                    }
+                    GM->HandleArrest(MyPC, TargetPawn);
                 }
             }
             else if (TargetPS->PlayerRole == EPlayerRole::Police)
@@ -81,10 +89,7 @@ void APoliceCH4Character::ServerTryArrest_Implementation()
                 // 시민 오인 체포면 GameMode 측에서 한도 차감/사직 로직 수행 중
                 if (ACH4GameMode* GM = GetWorld()->GetAuthGameMode<ACH4GameMode>())
                 {
-                    if (APlayerController* MyPC = Cast<APlayerController>(GetController()))
-                    {
-                        GM->HandleArrest(MyPC, TargetPawn); // 내부에서 AI면 OnAICaught 경로
-                    }
+                    GM->HandleArrest(MyPC, TargetPawn);
                 }
             }
         }
@@ -93,10 +98,7 @@ void APoliceCH4Character::ServerTryArrest_Implementation()
             // PlayerState가 없으면 AI/시민 취급 → GameMode로 위임
             if (ACH4GameMode* GM = GetWorld()->GetAuthGameMode<ACH4GameMode>())
             {
-                if (APlayerController* MyPC = Cast<APlayerController>(GetController()))
-                {
-                    GM->HandleArrest(MyPC, TargetPawn);
-                }
+                GM->HandleArrest(MyPC, TargetPawn);
             }
             bSuccess = false; // 시민(무고)로 간주
         }
@@ -159,6 +161,35 @@ AActor* APoliceCH4Character::FindArrestTarget(float TraceDistance, float Radius)
     return Best;
 }
 
+/* ====== 쿨다운 헬퍼 ====== */
 
+// 로컬 쿨다운 시작: 일정 시간 후 bArrestOnCooldown_Local = false
+void APoliceCH4Character::StartArrestCooldown_Local()
+{
+    bArrestOnCooldown_Local = true;  
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().SetTimer(
+            ArrestCooldownTimerHandle_Local,         
+            [this]() { bArrestOnCooldown_Local = false; }, // 타이머 끝나면 자동 해제
+            ArrestCooldown, false                    
+        );
+    }
+}
+
+// 서버 쿨다운 시작: 일정 시간 후 bArrestOnCooldown_Server = false
+
+void APoliceCH4Character::StartArrestCooldown_Server()
+{
+    bArrestOnCooldown_Server = true; 
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().SetTimer(
+            ArrestCooldownTimerHandle_Server,        
+            [this]() { bArrestOnCooldown_Server = false; }, // 타이머 끝나면 자동 해제
+            ArrestCooldown, false                     
+        );
+    }
+}
 
 

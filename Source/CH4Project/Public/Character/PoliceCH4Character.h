@@ -49,5 +49,22 @@ protected:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Arrest")
     float ArrestTraceRadius = 60.f;
+
+    // === Arrest Cooldown (입력 스팸/네트워크 보호) ===
+    UPROPERTY(EditDefaultsOnly, Category = "Arrest|Cooldown")
+    float ArrestCooldown = 1.0f;              // 체포 쿨다운(초)
+
+    FTimerHandle ArrestCooldownTimerHandle_Local; // 로컬(클라) 쿨다운 타이머 핸들 → 내 PC에서 연타 방지
+    FTimerHandle ArrestCooldownTimerHandle_Server; // 서버 쿨다운 타이머 핸들 → 서버로 가는 RPC 스팸 방지
+
+    // 로컬 입력 측 쿨다운(소유 클라 게이트)
+    bool bArrestOnCooldown_Local = false;
+    // 서버 권한 측 쿨다운(서버 게이트)
+    bool bArrestOnCooldown_Server = false;
+
+    // 로컬/서버 각각 쿨다운 시작 헬퍼
+    void StartArrestCooldown_Local();
+    void StartArrestCooldown_Server();
+
 };
 
