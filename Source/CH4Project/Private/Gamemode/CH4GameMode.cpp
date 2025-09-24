@@ -654,31 +654,6 @@ void ACH4GameMode::SpawnActors(TArray<TSubclassOf<APawn>> AIClasses, float InAIS
 }
 
 
-// 추후 아이템 파트의 작업에 따라 추가적인 수정이 필요할 것으로 보임.
-// 캐릭터 파트에서 아이템 습득 로직을 통해 이 함수를 호출하는 것으로 테스트가 필요.
-// 혹은 캐릭터 파트에서 AddItemToInventory 함수를 직접 스폰하는 과정이 필요함.
-void ACH4GameMode::GivePlayerItem(APlayerController* Player, UBaseItem* Item)
-{
-	// 서버 권한 확인
-	if (!HasAuthority() || !Player || !Item)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("GivePlayerItem: 유효하지 않은 입력"));
-		return;
-	}
-
-	// PlayerState 가져오기
-	if (ACH4PlayerState* PS = Player->GetPlayerState<ACH4PlayerState>())
-	{
-		PS->AddItemToInventory(Item);
-		UE_LOG(LogTemp, Log, TEXT("Gave Item %s to Player %s"), *Item->GetName(), *PS->GetPlayerName());
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("GivePlayerItem: PlayerState를 가져오지 못했습니다."));
-	}
-}
-
-
 //마리오카트처럼 랜덤 아이템 스폰 방식
 //서버 내에서만 관리할 스폰 로직으로, 게임 스테이트, 플레이어 스테이트에서 관리하지 않음.
 //1분마다 기존 스폰된 아이템 박스를 삭제하고, 새로운 위치에 아이템 박스를 스폰
