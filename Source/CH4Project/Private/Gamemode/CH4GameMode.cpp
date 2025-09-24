@@ -349,7 +349,7 @@ void ACH4GameMode::OnThiefCaught(APawn* ThiefPawn, APlayerController* ArrestingP
 		: nullptr;
 	
 	// 경찰의 플레이어스테이트 확보 + 실제 UI 출력 이후 어떻게 될 지 테스트 필요함.
-	ACH4PlayerState* PolicePS = Cast<ACH4PlayerState>(ArrestingPlayer->PlayerState);
+	ACH4PlayerState* GuardPS = Cast<ACH4PlayerState>(ArrestingPlayer->PlayerState);
 
 	if (ThiefPawn->GetController())
 	{
@@ -361,9 +361,9 @@ void ACH4GameMode::OnThiefCaught(APawn* ThiefPawn, APlayerController* ArrestingP
 	//따라서 캐릭터 파트에서 애니메이션을 실행한 후 몇초 후 자체적으로 Destroy 하도록 구현해야함. -> 타이머 구조로 재구성해야함.
 	
 	// 킬피드 전파
-	if (GS && PolicePS)
+	if (GS && GuardPS)
 	{
-		GS->AddKillFeed(PolicePS, VictimPS);
+		GS->AddKillFeed(GuardPS, VictimPS);
 	}
 
 	CheckWinCondition();
@@ -376,8 +376,8 @@ void ACH4GameMode::OnAICaught(APlayerController* ArrestingPlayer, APawn* AI, boo
 	if (!AI || !ArrestingPlayer) return;
 
 	// 경찰 PlayerState 가져오기
-	ACH4PlayerState* PolicePS = ArrestingPlayer->GetPlayerState<ACH4PlayerState>();
-	if (!PolicePS) return;
+	ACH4PlayerState* GuardPS = ArrestingPlayer->GetPlayerState<ACH4PlayerState>();
+	if (!GuardPS) return;
 	
 	AI->Destroy();
 
@@ -386,12 +386,12 @@ void ACH4GameMode::OnAICaught(APlayerController* ArrestingPlayer, APawn* AI, boo
 		ACH4GameStateBase* GS = GetGameState<ACH4GameStateBase>();
 		if (GS)
 		{
-			GS->AddKillFeed(PolicePS, nullptr, TEXT("AI Citizen"));
+			GS->AddKillFeed(GuardPS, nullptr, TEXT("Citizen"));
 		}
 
 		// 경찰 RemainingArrests 감소
-		PolicePS->RemainingArrests--;
-		CheckArrestLimit(PolicePS);
+		GuardPS->RemainingArrests--;
+		CheckArrestLimit(GuardPS);
 	}
 }
 

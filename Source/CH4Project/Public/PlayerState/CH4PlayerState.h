@@ -65,6 +65,7 @@ public:
 	void ClientReceiveRole(EPlayerRole NewRole);
 	void ClientReceiveRole_Implementation(EPlayerRole NewRole);
 
+	/*
 	//플레이어 스테이트에서 인벤토리 관리
 	UPROPERTY(ReplicatedUsing=OnRep_InventoryUpdated, BlueprintReadOnly, Category="Inventory", meta=(AllowPrivateAccess="true"))
 	TArray<UBaseItem*> Inventory; // UBaseItem으로 수정. 클라이언트 RPC로 위젯을 공유해야할 듯.
@@ -74,14 +75,15 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category="Inventory")
 	void AddItemToInventory(class UBaseItem* NewItem);
+	*/
 	
 	UFUNCTION(Client, Reliable)
 	void UpdateKillFeedUI(const FString& KillerName, const FString& VictimName);
 	
 
 	
-	UFUNCTION()
-	void OnRep_InventoryUpdated();
+	//UFUNCTION()
+	//void OnRep_InventoryUpdated();
 
 protected:
 	

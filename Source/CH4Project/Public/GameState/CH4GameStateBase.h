@@ -93,4 +93,8 @@ public:
 	void OnRep_MatchTime();
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+private:
+	FString GetRoleText(EPlayerRole Role) const;
+
 };
