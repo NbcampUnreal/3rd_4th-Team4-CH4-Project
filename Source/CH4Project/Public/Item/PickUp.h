@@ -18,9 +18,11 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "PickUp")
 	UStaticMeshComponent* StaticMesh;
 
+public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PickUp")
 	TSubclassOf<class UBaseItem> ItemClass;
 	
+protected:
 	virtual void BeginPlay() override;
 	void Tick(float DeltaSeconds);
 
