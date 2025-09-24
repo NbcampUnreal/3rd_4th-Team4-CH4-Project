@@ -24,7 +24,8 @@ public:
 	void UpdateRemainingArrests(int32 RemainingArrests);
 	UFUNCTION(BlueprintCallable)
 	void UpdatePlayerRole(EPlayerRole NewRole);
-	
+	UFUNCTION(BlueprintCallable)
+	void AddKillFeedEntry(const FString& KillerName, const FString& VictimName);
 
 	UPROPERTY(meta = (BindWidget))
 	UTextBlock* TimeText;

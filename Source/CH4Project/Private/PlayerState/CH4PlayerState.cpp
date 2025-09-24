@@ -147,14 +147,7 @@ void ACH4PlayerState::UpdateKillFeedUI_Implementation(const FString& KillerName,
 		{
 			if (MyPC->MyHUDWidget)
 			{
-				//MyPC->MyHUDWidget->AddKillFeedEntry(KillerName, VictimName);
-				/* 이 아래 파트를 유저위젯 파트에 추가하면 정상 동작할 것으로 추정됨.
-				void UCH4UserWidget::AddKillFeedEntry(const FString& KillerName, const FString& VictimName)
-				{
-					UE_LOG(LogTemp, Log, TEXT("KillFeed: %s -> %s"), *KillerName, *VictimName); //디버깅 로그
-					// 실제 UI 업데이트 로직 추가, 킬 피드가 업데이트 되는 위젯 파트의 변수로 선언 필요.
-				}
-				 */
+				MyPC->MyHUDWidget->AddKillFeedEntry(KillerName, VictimName);
 			}
 		}
 	}
