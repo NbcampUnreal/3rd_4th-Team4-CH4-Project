@@ -6,6 +6,7 @@
 
 class UInputAction;
 class AActor;
+class UAnimMontage;
 
 UCLASS()
 class CH4PROJECT_API APoliceCH4Character : public ACH4Character
@@ -66,5 +67,12 @@ protected:
     void StartArrestCooldown_Local();
     void StartArrestCooldown_Server();
 
+    /* ====== 몽타주 재생 ====== */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Arrest|FX")
+    UAnimMontage* ArrestMontage = nullptr;
+
+    void PlayLocalArrestMontage(); //입력 즉시 로컬 재생(반응성)
+    UFUNCTION(NetMulticast, Unreliable)
+    void MulticastPlayArrestMontage(); //모든 클라 동기화 재생
 };
 

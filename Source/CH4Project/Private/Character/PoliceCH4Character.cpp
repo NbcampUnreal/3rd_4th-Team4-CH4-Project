@@ -6,7 +6,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Net/UnrealNetwork.h"
-
+#include "Animation/AnimInstance.h"
 #include "GameMode/CH4GameMode.h"
 #include "GameState/CH4GameStateBase.h"
 #include "PlayerState/CH4PlayerState.h"
@@ -45,6 +45,7 @@ void APoliceCH4Character::OnArrestInput()
     if (bArrestOnCooldown_Local) return;  //로컬 쿨다운 게이트
 
     // 클라 입력 → 서버가 판정
+    PlayLocalArrestMontage();   //입력 즉시 로컬에서 모션 재생
     ServerTryArrest();                    // 서버에 체포 요청
     StartArrestCooldown_Local();          //로컬 쿨다운 시작
 }
@@ -60,48 +61,25 @@ void APoliceCH4Character::ServerTryArrest_Implementation()
 
     AActor* Target = FindArrestTarget(ArrestTraceDistance, ArrestTraceRadius);
     bool bSuccess = false;
-
-    if (APawn* TargetPawn = Cast<APawn>(Target))
+    APawn* TargetPawn = Cast<APawn>(Target);
+    if (TargetPawn)
     {
-        // 타겟의 PlayerState로 역할 확인 (없으면 시민/AI 취급)
         if (ACH4PlayerState* TargetPS = TargetPawn->GetPlayerState<ACH4PlayerState>())
         {
-            if (TargetPS->PlayerRole == EPlayerRole::Thief)
-            {
-                bSuccess = true;
-
-                // GameMode에 실제 체포 처리 위임(도둑 수 감소, Destroy, 승리 조건 등)
-                if (ACH4GameMode* GM = GetWorld()->GetAuthGameMode<ACH4GameMode>())
-                {
-                    GM->HandleArrest(MyPC, TargetPawn);
-                }
-            }
-            else if (TargetPS->PlayerRole == EPlayerRole::Police)
-            {
-                // 경찰은 체포 대상 아님 → 실패 처리(연출/경고 UI)
-                bSuccess = false;
-            }
-            else
-            {
-                // Unassigned 등 → 실패 취급(시민/AI와 유사)
-                bSuccess = false;
-
-                // 시민 오인 체포면 GameMode 측에서 한도 차감/사직 로직 수행 중
-                if (ACH4GameMode* GM = GetWorld()->GetAuthGameMode<ACH4GameMode>())
-                {
-                    GM->HandleArrest(MyPC, TargetPawn);
-                }
-            }
+            bSuccess = (TargetPS->PlayerRole == EPlayerRole::Thief); // UI용 성공 여부
         }
-        else
+
+        if (ACH4GameMode* GM = GetWorld()->GetAuthGameMode<ACH4GameMode>())
         {
-            // PlayerState가 없으면 AI/시민 취급 → GameMode로 위임
-            if (ACH4GameMode* GM = GetWorld()->GetAuthGameMode<ACH4GameMode>())
-            {
-                GM->HandleArrest(MyPC, TargetPawn);
-            }
-            bSuccess = false; // 시민(무고)로 간주
+            GM->HandleArrest(MyPC, TargetPawn); // 통합 위임(도둑/AI/경찰 예외 모두 내부 처리)
         }
+
+        MulticastPlayArrestMontage(); // [추가] 전 클라 동기화 재생
+    }
+    else
+    {
+        // 타겟이 없어도 휘두르는 모션을 보이고 싶으면 아래 주석 해제
+         MulticastPlayArrestMontage();
     }
 
     // 연출 브로드캐스트
@@ -109,11 +87,36 @@ void APoliceCH4Character::ServerTryArrest_Implementation()
 
     // 체포한 본인에게만 결과 UI
     ClientShowArrestResultUI(bSuccess);
+
+}
+
+/* ====== 몽타주 재생 ====== */
+
+void APoliceCH4Character::PlayLocalArrestMontage() // [추가]
+{
+    if (!ArrestMontage) return;
+
+    if (USkeletalMeshComponent* MeshComp = GetMesh())
+    {
+        if (UAnimInstance* Anim = MeshComp->GetAnimInstance())
+        {
+            if (!Anim->Montage_IsPlaying(ArrestMontage))
+            {
+                Anim->Montage_Play(ArrestMontage, 1.0f);
+            }
+        }
+    }
+}
+
+void APoliceCH4Character::MulticastPlayArrestMontage_Implementation()
+{
+    // 멀티캐스트는 송신자 포함 모든 클라에서 호출 → PlayLocal 내부에서 중복 재생 방지 체크
+    PlayLocalArrestMontage();
 }
 
 void APoliceCH4Character::MulticastPlayArrestFX_Implementation(bool bSuccess)
 {
-    // TODO: 성공/실패에 따른 이펙트/사운드/애님
+    //이 함수는 이펙트/사운드/카메라셰이크 등 연출만 담당(몽타주는 분리)
     UE_LOG(LogTemp, Log, TEXT("[ArrestFX] %s"), bSuccess ? TEXT("SUCCESS") : TEXT("FAIL"));
 }
 
@@ -133,6 +136,8 @@ AActor* APoliceCH4Character::FindArrestTarget(float TraceDistance, float Radius)
     TArray<FHitResult> Hits;
     FCollisionShape Sphere = FCollisionShape::MakeSphere(Radius);
     FCollisionQueryParams Params(SCENE_QUERY_STAT(ArrestTrace), false, this);
+
+    Params.AddIgnoredActor(this);
 
     // Pawn 채널에서 Block 되도록 프리셋 구성 필요
     GetWorld()->SweepMultiByChannel(Hits, Start, End, FQuat::Identity, ECC_Pawn, Sphere, Params);
