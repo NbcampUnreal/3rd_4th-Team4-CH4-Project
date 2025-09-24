@@ -40,7 +40,6 @@ void UCH4UserWidget::UpdatePlayerRole(EPlayerRole NewRole)
 	}
 	
 	UpdateRemainingArrests(GetOwningPlayerState<ACH4PlayerState>()->RemainingArrests);
-	//CurrentRole이 값이 들어가 있어야 if문이 동작한다. 그래서 리메이닝은 커런트롤 뒤로 넣어야 한다.
 }
 void UCH4UserWidget::ClearStatusText()
 {
@@ -49,3 +48,15 @@ void UCH4UserWidget::ClearStatusText()
 		StatusText->SetText(FText::GetEmpty());
 	}
 }
+void UCH4UserWidget::AddKillFeedEntry(const FString& KillerName, const FString& VictimName)
+{
+	UE_LOG(LogTemp, Log, TEXT("KillFeed: %s -> %s"), *KillerName, *VictimName);
+	StatusText->SetText(FText::FromString(FString::Printf(TEXT("%s KickOut %s"), *KillerName, *VictimName)));
+	
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(ClearTextTimerHandle);
+		World->GetTimerManager().SetTimer(ClearTextTimerHandle, this, &UCH4UserWidget::ClearStatusText, 5.0f, false);
+	}
+}
+
