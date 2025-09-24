@@ -70,9 +70,7 @@ public:
 	//캐릭터 스폰 로직 통합 및 개선 테스트 버전
 	void SpawnActors(TArray<TSubclassOf<APawn>> AIClasses, float AISpawnRadius);
 	
-
-	UFUNCTION(BlueprintCallable, Category="Inventory")
-	void GivePlayerItem(APlayerController* Player, class UBaseItem* Item);
+	
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spawning")
 	TArray<AItemSpawnVolume*> ItemSpawnVolumes;
