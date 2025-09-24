@@ -19,10 +19,15 @@ protected:
 
 
 public:
+	// 로비 화면
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
 	TSubclassOf<UCH4ChatUserWidget> LobbyWidgetClass;
 
-	// 결과 화면 위젯 클래스
+	// 로비 플레이어 리스트
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
+	TSubclassOf<class UUserWidget> LobbyProfileClass;
+
+	// 결과 화면
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
 	TSubclassOf<class UUserWidget> ResultScreen;
 
@@ -33,6 +38,18 @@ public:
 	// 서버에서 준비 확인
 	UFUNCTION(Server, Reliable)
 	void Server_SetReady(bool bNewReady);
+
+	// 로비 플레이어 리스트 갱신
+	UFUNCTION(Client, Reliable)
+	void RefreshPlayerList();
+
+	// 로비 마우스 커서 분별
+	UFUNCTION(Client, Reliable)
+	void SetLobbyInput();
+
+	// 인게임 마우스 커서 분별
+	UFUNCTION(Client, Reliable)
+	void SetInGameInput();
 
 	// 클라이언트 결과 화면
 	// bIsWin == true, false

@@ -95,6 +95,16 @@ void ACH4ChatGameMode::StartGame()
 {
     if (UWorld* World = GetWorld())
     {
-        World->ServerTravel(TEXT("/Game/Maps/InGameMap_Prototype?listen"));
+        // 인게임 입력 모드로 전환
+        for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
+        {
+            if (ACH4ChatPlayerController* PC = Cast<ACH4ChatPlayerController>(It->Get()))
+            {
+                PC->SetInGameInput();
+            }
+        }
+
+        // 맵 이동
+        World->ServerTravel(TEXT("InGameMap_Prototype"));
     }
 }
