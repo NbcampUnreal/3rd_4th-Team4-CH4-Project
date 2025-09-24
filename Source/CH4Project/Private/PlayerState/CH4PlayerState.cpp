@@ -10,6 +10,7 @@ ACH4PlayerState::ACH4PlayerState()
 	RemainingArrests = 3; //동적 체포 X, MaxArrests는 굳이 수정할 필요 없음.
 	MaxArrests = 3;
 }
+
 void ACH4PlayerState::BeginPlay()
 {
 	UE_LOG(LogTemp, Display, TEXT("RemainingArrests : %d"), RemainingArrests);
@@ -107,12 +108,14 @@ void ACH4PlayerState::ClientReceiveRole_Implementation(EPlayerRole NewRole)
 	// 추후 해당되는 위젯 파트에  추가 가능.
 }
 
+/*
 //캐릭터의 인벤토리 업데이트 파트.
 void ACH4PlayerState::OnRep_InventoryUpdated()
 {
 	// 클라이언트 UI 갱신
 	// 이미지 출력 파트도 이쪽에서 구현해야할 것으로 추정됨.
 }
+
 
 //서버 인벤토리에 아이템을 추가하는 과정
 void ACH4PlayerState::AddItemToInventory(UBaseItem* NewItem)
@@ -136,7 +139,7 @@ void ACH4PlayerState::AddItemToInventory(UBaseItem* NewItem)
 	// Replication이 클라에 반영될 때 OnRep_InventoryUpdated 실행됨
 	OnRep_InventoryUpdated();
 }
-
+*/
 
 //킬피드 관련 로직으로 CH4UserWidget에서 추가해야할 것으로 판단됨.
 void ACH4PlayerState::UpdateKillFeedUI_Implementation(const FString& KillerName, const FString& VictimName)
@@ -172,6 +175,6 @@ void ACH4PlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutL
 	DOREPLIFETIME(ACH4PlayerState, MaxArrests);
 	
 	//인벤토리 관리 구조
-	DOREPLIFETIME(ACH4PlayerState, Inventory);
+	//DOREPLIFETIME(ACH4PlayerState, Inventory);
 
 }

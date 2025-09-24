@@ -15,6 +15,17 @@ ACH4GameStateBase::ACH4GameStateBase()
 	MaxAISpawn = 10;
 }
 
+FString ACH4GameStateBase::GetRoleText(EPlayerRole InRole) const
+{
+	switch (InRole) // 플레이어 스테이트의 값을 문자열로 바꾸는 함수.
+	{
+	case EPlayerRole::Police:   return TEXT("Guard");
+	case EPlayerRole::Thief:   return TEXT("Thief");
+	case EPlayerRole::Citizen: return TEXT("Citizen");
+	default:                   return TEXT("???");
+	}
+}
+
 void ACH4GameStateBase::OnRep_MatchTypes()
 {
 	//클라이언트에서 UI 업데이트 기능
@@ -103,17 +114,16 @@ void ACH4GameStateBase::OnRep_FinalResult()
 }
 
 //킬피드 파트 테스트 필요.
-void ACH4GameStateBase::AddKillFeed(ACH4PlayerState* Police, ACH4PlayerState* Thief, const FString& VictimOverrideName)
+void ACH4GameStateBase::AddKillFeed(ACH4PlayerState* Guard, ACH4PlayerState* Thief, const FString& VictimOverrideName)
 {
 	if (!HasAuthority()) return;
 
 	FKillFeedEntry Entry;
-	Entry.KillerName = Police ? Police->GetPlayerName() : TEXT("???");
+	Entry.KillerName = Guard ? GetRoleText(Guard->PlayerRole) : TEXT("???");
 
-	// Victim의 플레이어 스테이트가 nullptr이면 override name 사용, 없으면 AI 시민으로 Citizen을 사용함.
 	if (Thief)
 	{
-		Entry.VictimName = Thief->GetPlayerName();
+		Entry.VictimName = GetRoleText(Thief->PlayerRole);
 	}
 	else if (!VictimOverrideName.IsEmpty())
 	{
@@ -126,8 +136,9 @@ void ACH4GameStateBase::AddKillFeed(ACH4PlayerState* Police, ACH4PlayerState* Th
 
 	KillFeed.Add(Entry);
 
-	OnRep_KillFeed();
+	OnRep_KillFeed(); // 클라이언트에 즉시 반영
 }
+
 
 
 
@@ -147,6 +158,8 @@ void ACH4GameStateBase::OnRep_KillFeed()
 		}
 	}
 }
+
+
 
 void ACH4GameStateBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
