@@ -108,40 +108,6 @@ void ACH4PlayerState::ClientReceiveRole_Implementation(EPlayerRole NewRole)
 	// 추후 해당되는 위젯 파트에  추가 가능.
 }
 
-/*
-//캐릭터의 인벤토리 업데이트 파트.
-void ACH4PlayerState::OnRep_InventoryUpdated()
-{
-	// 클라이언트 UI 갱신
-	// 이미지 출력 파트도 이쪽에서 구현해야할 것으로 추정됨.
-}
-
-
-//서버 인벤토리에 아이템을 추가하는 과정
-void ACH4PlayerState::AddItemToInventory(UBaseItem* NewItem)
-{
-	if (!HasAuthority()) return;
-
-	if (!NewItem)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("잘못된 아이템입니다."));
-		return;
-	}
-
-	if (Inventory.Num() >= MaxInventorySize)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("인벤토리가 가득 찼습니다. (%d/%d)"), Inventory.Num(), MaxInventorySize);
-		return;
-	}
-
-	Inventory.Add(NewItem);
-
-	// Replication이 클라에 반영될 때 OnRep_InventoryUpdated 실행됨
-	OnRep_InventoryUpdated();
-}
-*/
-
-//킬피드 관련 로직으로 CH4UserWidget에서 추가해야할 것으로 판단됨.
 void ACH4PlayerState::UpdateKillFeedUI_Implementation(const FString& KillerName, const FString& VictimName)
 {
 	if (APlayerController* PC = Cast<APlayerController>(GetOwner()))
@@ -166,8 +132,5 @@ void ACH4PlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutL
 	// 체포 횟수 Replication
 	DOREPLIFETIME(ACH4PlayerState, RemainingArrests);
 	DOREPLIFETIME(ACH4PlayerState, MaxArrests);
-	
-	//인벤토리 관리 구조
-	//DOREPLIFETIME(ACH4PlayerState, Inventory);
 
 }

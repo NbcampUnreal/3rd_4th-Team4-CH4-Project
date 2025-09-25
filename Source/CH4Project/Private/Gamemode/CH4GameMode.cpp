@@ -8,6 +8,7 @@
 #include "GameState/CH4GameStateBase.h"
 #include "PlayerState/CH4PlayerState.h"
 #include "PlayerController/CH4PlayerController.h"
+#include "Type/MatchTypes.h"
 #include "Kismet/GameplayStatics.h"
 #include "Algo/RandomShuffle.h"
 #include "NavigationSystem.h"
@@ -15,6 +16,7 @@
 #include "SpawnVolume/PlayerSpawnVolume.h"
 #include "SpawnVolume/AISpawnVolume.h"
 #include "EngineUtils.h"
+#include "GameInstance/CH4GameInstance.h"
 #include "SpawnVolume/ItemSpawnVolume.h"
 #include "IngameUI/CH4UserWidget.h"
 
@@ -31,10 +33,14 @@ void ACH4GameMode::BeginPlay()
 {
 	Super::BeginPlay();
 
-
-	// 레벨에 배치된 모든 SpawnVolume Actor 참조 가져오기 추후 AI, 캐릭터 스폰에 사용하기 위한 기초 로직.
-	//UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseSpawnVolume::StaticClass(), SpawnVolumes);
-
+	//게임 인스턴스에 저장된 승리한 역할군, 마지막 역할, 매치 진행 상태를 초기화 하는 구조로 재시작 시 게임 인스턴스를 초기화하기 위한 로직.
+	if (UCH4GameInstance* GI = GetGameInstance<UCH4GameInstance>())
+	{
+		GI-> FinalWinner = EWinTeam::None;
+		GI-> LastRoles.Empty();
+		GI-> LastMatchState = EMatchTypes::WaitingToStart;
+	}
+	
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseSpawnVolume::StaticClass(), SpawnVolumes);
 	UE_LOG(LogTemp, Warning, TEXT("총 SpawnVolumes: %d"), SpawnVolumes.Num());
 
@@ -42,8 +48,6 @@ void ACH4GameMode::BeginPlay()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("SpawnVolume: %s (%s)"), *Actor->GetName(), *Actor->GetClass()->GetName());
 	}
-
-	//AssignRoles();
 	
 	//GetWorldTimerManager().SetTimer(GameStartTimerHandle, this, &ACH4GameMode::AssignRoles, 5.f, false);
 	//추후 딜레이 수정 후 실제 플레이어들이 포함되는 테스트가 필요.
@@ -189,11 +193,15 @@ void ACH4GameMode::UpdateMatchTime()
 void ACH4GameMode::CheckWinCondition() //승리 조건 체크 로직으로 추후 필요 시 조건 추가 필요.
 {
 	ACH4GameStateBase* GS = GetGameState<ACH4GameStateBase>();
+	UCH4GameInstance* GI = GetGameInstance<UCH4GameInstance>();
+	
+	
 	if (!GS) return;
 
 	if (GS->RemainingThieves <= 0) //경찰 승리조건
 	{
-		FinalWinner = EWinTeam::Police;
+		//게임 인스턴스에 게임모드, 즉 서버가 직접 개입하면 문제 발생 이 파트를 게임 스테이트에서 저장용으로 지정한 후, 게임스테이트의 함수를 불러오는 방식으로 구현해야함.
+		GI -> FinalWinner = EWinTeam::Police;
 		SetMatchState(EMatchTypes::GameOver);
 		HandleGameOver();
 		RestartGame();
@@ -201,7 +209,7 @@ void ACH4GameMode::CheckWinCondition() //승리 조건 체크 로직으로 추�
 	}
 	if (GS->MatchTime <= 0.f)
 	{
-		FinalWinner = EWinTeam::Thief;
+		GI -> FinalWinner = EWinTeam::Thief;
 		SetMatchState(EMatchTypes::GameOver);
 		HandleGameOver();
 		RestartGame();
@@ -209,7 +217,7 @@ void ACH4GameMode::CheckWinCondition() //승리 조건 체크 로직으로 추�
 	}
 	else if (GS->RemainingPolice <= 0 )
 	{
-		FinalWinner = EWinTeam::Thief;
+		GI -> FinalWinner = EWinTeam::Thief;
 		SetMatchState(EMatchTypes::GameOver);
 		HandleGameOver();
 		RestartGame();
@@ -220,8 +228,30 @@ void ACH4GameMode::HandleGameOver()
 {
 	GetWorldTimerManager().ClearTimer(MatchTimerHandle);
 
-	//GetWorldTimerManager().ClearTimer(MatchTimerHandle);
-	//아이템 스폰 타이머도 초기화 필요.
+	ACH4GameStateBase* GS = GetGameState<ACH4GameStateBase>();
+	
+	if (UCH4GameInstance* GI = GetGameInstance<UCH4GameInstance>())
+	{
+		UE_LOG(LogTemp, Log, TEXT("[HandleGameOver] GameInstance 확인 완료"));
+		
+		GI->LastMatchState = EMatchTypes::GameOver;
+		UE_LOG(LogTemp, Log, TEXT("[HandleGameOver] LastMatchState = GameOver로 설정"));
+
+		GI->LastRoles.Empty();
+		UE_LOG(LogTemp, Log, TEXT("[HandleGameOver] LastRoles 초기화"));
+
+		for (APlayerState* PS : GS->PlayerArray)
+		{
+			if (ACH4PlayerState* MyPS = Cast<ACH4PlayerState>(PS))
+			{
+				FString PlayerIdStr = MyPS->GetPlayerName();
+				//추후 플레이어 스테이트에 닉네임 과정이 추가되서 저장된다면 해당 닉네임이 추가되지만, 여기선 역할 저장용이기 때문에 굳이 중요하진 않음
+				GI->LastRoles.Add(PlayerIdStr, MyPS->GetPlayerRole());
+				UE_LOG(LogTemp, Log, TEXT("게임 인스턴스에 ID 별로 역할군 저장 완료"));
+
+			}
+		}
+	}
 	
 
 	// AI 캐릭터 및 플레이어 캐릭터 삭제용 로직
@@ -262,7 +292,7 @@ void ACH4GameMode::HandleGameOver()
 		}
 	}
 
-	/* 로비로 넘어간 후 플레이어 컨트롤러의 UI가 남아있지 않을 경우 삭제 가능.
+	/* 결과창이 레벨 게임모드에서 관리하게 되면 수정해야할 소요가 있음.
 	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
 	{
 		ACH4PlayerController* MyPC = Cast<ACH4PlayerController>(It->Get());
@@ -285,7 +315,7 @@ void ACH4GameMode::HandleGameOver()
 	GetWorldTimerManager().ClearAllTimersForObject(this);
 	ClearItems();
 	UE_LOG(LogTemp, Warning, TEXT("게임 오버 처리 완료"));
-	
+
 	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
 	{
 		APlayerController* PC = It->Get();
@@ -445,7 +475,6 @@ void ACH4GameMode::CheckArrestLimit(ACH4PlayerState* PolicePS) // 직관적인 �
     		}
     	}
 
-    	PolicePS->SetPlayerRole(EPlayerRole::Unassigned);
     	CheckWinCondition();
     }
 }
