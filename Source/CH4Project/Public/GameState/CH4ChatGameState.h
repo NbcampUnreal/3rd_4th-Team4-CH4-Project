@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameStateBase.h"
@@ -9,4 +9,7 @@ class CH4PROJECT_API ACH4ChatGameState : public AGameStateBase
 {
 	GENERATED_BODY()
 
+public:
+    UFUNCTION(NetMulticast, Reliable)
+    void MulticastRefreshPlayerList();
 };

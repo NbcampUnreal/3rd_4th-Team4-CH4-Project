@@ -1,6 +1,8 @@
-#include "PlayerController/CH4ChatPlayerController.h"
+ï»¿#include "PlayerController/CH4ChatPlayerController.h"
 #include "PlayerState/CH4ChatPlayerState.h"
 #include "Gamemode/CH4ChatGameMode.h"
+#include "GameFramework/GameStateBase.h"
+#include "GameFramework/PlayerState.h"
 #include "OutGameUI/CH4ChatUserWidget.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/Image.h"
@@ -44,23 +46,24 @@ void ACH4ChatPlayerController::BeginPlay()
     }
 }
 
-// ÁØºñ »óÅÂ
+// ì¤€ë¹„ ìƒíƒœ
 void ACH4ChatPlayerController::SetReady(bool bNewReady)
 {
     if (IsLocalController())
         Server_SetReady(bNewReady);
 }
 
-// ¼­¹ö¿¡¼­ ÁØºñ »óÅÂ È®ÀÎ
+// ì„œë²„ì—ì„œ ì¤€ë¹„ ìƒíƒœ í™•ì¸
 void ACH4ChatPlayerController::Server_SetReady_Implementation(bool bNewReady)
 {
     if (ACH4ChatPlayerState* PS = GetPlayerState<ACH4ChatPlayerState>())
         PS->ServerSetReady(bNewReady);
 }
 
-// ·Îºñ ÇÃ·¹ÀÌ¾î ¸®½ºÆ® °»½Å
+// ë¡œë¹„ í”Œë ˆì´ì–´ ë¦¬ìŠ¤íŠ¸ ê°±ì‹ 
 void ACH4ChatPlayerController::RefreshPlayerList_Implementation()
 {
+    // ë¡œë¹„ UI ì°¾ê¸°
     TArray<UUserWidget*> FoundWidgets;
     UWidgetBlueprintLibrary::GetAllWidgetsOfClass(this, FoundWidgets, UCH4ChatUserWidget::StaticClass(), false);
 
@@ -70,32 +73,29 @@ void ACH4ChatPlayerController::RefreshPlayerList_Implementation()
         {
             Grid->ClearChildren();
 
-            UWorld* World = GetWorld();
-            if (!World) return;
-
-            int32 Index = 0;
-            for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
+            if (AGameStateBase* GS = GetWorld()->GetGameState())
             {
-                if (APlayerController* PC = It->Get())
+                int32 Index = 0;
+                for (APlayerState* PS : GS->PlayerArray)
                 {
-                    if (ACH4ChatPlayerState* PS = PC->GetPlayerState<ACH4ChatPlayerState>())
+                    if (LobbyProfileClass)
                     {
-                        if (LobbyProfileClass)
+                        if (UUserWidget* Profile = CreateWidget<UUserWidget>(this, LobbyProfileClass))
                         {
-                            if (UUserWidget* Profile = CreateWidget<UUserWidget>(this, LobbyProfileClass))
+                            if (UTextBlock* NameText = Cast<UTextBlock>(Profile->GetWidgetFromName(TEXT("TextBlock_PlayerName"))))
                             {
-                                if (UTextBlock* NameText = Cast<UTextBlock>(Profile->GetWidgetFromName(TEXT("TextBlock_PlayerName"))))
-                                {
-                                    NameText->SetText(FText::FromString(PS->GetPlayerName()));
-                                }
-                                if (UCheckBox* ReadyBox = Cast<UCheckBox>(Profile->GetWidgetFromName(TEXT("CheckBox_Ready"))))
-                                {
-                                    ReadyBox->SetIsChecked(PS->IsReady());
-                                }
-
-                                Grid->AddChildToGrid(Profile, Index, 0);
-                                Index++;
+                                NameText->SetText(FText::FromString(PS->GetPlayerName()));
                             }
+                            if (UCheckBox* ReadyBox = Cast<UCheckBox>(Profile->GetWidgetFromName(TEXT("CheckBox_Ready"))))
+                            {
+                                if (ACH4ChatPlayerState* MyPS = Cast<ACH4ChatPlayerState>(PS))
+                                {
+                                    ReadyBox->SetIsChecked(MyPS->IsReady());
+                                }
+                            }
+
+                            Grid->AddChildToGrid(Profile, Index, 0);
+                            Index++;
                         }
                     }
                 }
@@ -132,7 +132,7 @@ void ACH4ChatPlayerController::ShowResultScreen_Implementation(bool bIsWin)
     }
 }
 
-// ¸¶¿ì½º Æ÷ÀÎÅÍ ·Îºñ Àü¿ë
+// ë§ˆìš°ìŠ¤ í¬ì¸í„° ë¡œë¹„ ì „ìš©
 void ACH4ChatPlayerController::SetLobbyInput_Implementation()
 {
     bShowMouseCursor = true;
@@ -144,7 +144,7 @@ void ACH4ChatPlayerController::SetLobbyInput_Implementation()
     SetInputMode(Mode);
 }
 
-// ¸¶¿ì½º Æ÷ÀÎÅÍ ÀÎ°ÔÀÓ Àü¿ë
+// ë§ˆìš°ìŠ¤ í¬ì¸í„° ì¸ê²Œì„ ì „ìš©
 void ACH4ChatPlayerController::SetInGameInput_Implementation()
 {
     bShowMouseCursor = false;
@@ -153,13 +153,13 @@ void ACH4ChatPlayerController::SetInGameInput_Implementation()
     SetInputMode(Mode);
 }
 
-// ·Îºñ·Î º¹±Í
+// ë¡œë¹„ë¡œ ë³µê·€
 void ACH4ChatPlayerController::ReturnLobby()
 {
     UGameplayStatics::OpenLevel(this, FName("LobbyMap"));
 }
 
-// °ÔÀÓ Á¾·á
+// ê²Œì„ ì¢…ë£Œ
 void ACH4ChatPlayerController::ExitGame()
 {
     if (UWorld* World = GetWorld())
