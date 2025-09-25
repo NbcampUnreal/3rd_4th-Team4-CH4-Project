@@ -2,9 +2,10 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "Components/TextBlock.h"
 #include "CH4UserWidget.generated.h"
 
+class UTextBlock;
+class UVerticalBox;
 /**
  * 
  */
@@ -37,10 +38,14 @@ public:
 	UTextBlock* ArrestsText;
 	UPROPERTY(meta = (BindWidget))
 	UTextBlock* StatusText;
+	UPROPERTY(meta = (BindWidget))
+	UVerticalBox* KillFeedBox;
 
 private:
 	FTimerHandle ClearTextTimerHandle;
 	EPlayerRole CurrentRole; 
-
+	
 	void ClearStatusText();
+	void RemoveKillEntry(UTextBlock* Entry);
+
 };
