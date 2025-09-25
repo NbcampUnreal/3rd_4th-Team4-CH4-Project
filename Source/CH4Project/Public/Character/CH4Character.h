@@ -31,16 +31,15 @@ protected:
 	void Move(const FInputActionValue& Value);
 	void Look(const FInputActionValue& Value);
 
-	// 아이템 사용
+	// 아이템 사용 (클라이언트에서 호출)
 	UFUNCTION(BlueprintCallable)
 	void UseSlot1();
 	UFUNCTION(BlueprintCallable)
 	void UseSlot2();
 
-	//// 서버에서 아이템 사용을 처리하는 RPC
-	//UFUNCTION(Server, Reliable)
-	//void ServerUseItem(int32 SlotIndex);
-	void ServerUseItem_Implementation(int32 SlotIndex);
+	// 서버에서 아이템 사용을 처리하는 RPC
+	UFUNCTION(Server, Reliable)
+	void ServerUseItem(int32 SlotIndex);
 
 	// 아이템 사용 상태 초기화
 	void ResetUsingItem();
@@ -71,6 +70,12 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	class UInputAction* UseSlot2Action;
+
+	UPROPERTY(Replicated, ReplicatedUsing = OnRep_MaxWalkSpeed)
+	float CurrentMaxWalkSpeed;
+
+	UFUNCTION()
+	void OnRep_MaxWalkSpeed();
 
 	// 충돌 이벤트
 	UFUNCTION()
@@ -103,7 +108,7 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Animation")
 	bool bIsRunning;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Animation")
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Animation")
 	float Speed;
 
 	// 아이템 사용 여부(복제)
