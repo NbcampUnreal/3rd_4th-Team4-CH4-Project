@@ -29,7 +29,8 @@ public:
 	virtual void PostLogin(APlayerController* NewPlayer) override;
 
 
-	EWinTeam FinalWinner = EWinTeam::None;
+	//게임모드에서 승 패를 선언한 경우, 결과창 위젯을 레벨 게임모드에서 호출해야함.
+	//로비 측의 작업 현황에 따라 해당 파트 로직의 존속 여부가 결정되어야할 듯.
 
 	
 	/** 역할 배정 */
@@ -124,7 +125,7 @@ protected:
 	// 주기적 아이템 스폰 타이머
 	FTimerHandle ItemSpawnTimerHandle;
 
-	// 주기적 스폰 간격 (초)
+	// 주기적 스폰 간격 (초) 추후 60초로 수정해야할 필요성 있음
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Item Spawning")
 	float ItemSpawnInterval = 20.f;
 
