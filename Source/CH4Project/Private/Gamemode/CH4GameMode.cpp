@@ -193,7 +193,7 @@ void ACH4GameMode::UpdateMatchTime()
 void ACH4GameMode::CheckWinCondition() //승리 조건 체크 로직으로 추후 필요 시 조건 추가 필요.
 {
 	ACH4GameStateBase* GS = GetGameState<ACH4GameStateBase>();
-	//UCH4GameInstance* GI = GetGameInstance<UCH4GameInstance>();
+	UCH4GameInstance* GI = GetGameInstance<UCH4GameInstance>();
 	
 	
 	if (!GS) return;
@@ -201,7 +201,7 @@ void ACH4GameMode::CheckWinCondition() //승리 조건 체크 로직으로 추�
 	if (GS->RemainingThieves <= 0) //경찰 승리조건
 	{
 		//게임 인스턴스에 게임모드, 즉 서버가 직접 개입하면 문제 발생 이 파트를 게임 스테이트에서 저장용으로 지정한 후, 게임스테이트의 함수를 불러오는 방식으로 구현해야함.
-		//GI -> FinalWinner = EWinTeam::Police;
+		GI -> FinalWinner = EWinTeam::Police;
 		SetMatchState(EMatchTypes::GameOver);
 		HandleGameOver();
 		RestartGame();
@@ -209,7 +209,7 @@ void ACH4GameMode::CheckWinCondition() //승리 조건 체크 로직으로 추�
 	}
 	if (GS->MatchTime <= 0.f)
 	{
-		//GI -> FinalWinner = EWinTeam::Thief;
+		GI -> FinalWinner = EWinTeam::Thief;
 		SetMatchState(EMatchTypes::GameOver);
 		HandleGameOver();
 		RestartGame();
@@ -217,7 +217,7 @@ void ACH4GameMode::CheckWinCondition() //승리 조건 체크 로직으로 추�
 	}
 	else if (GS->RemainingPolice <= 0 )
 	{
-		//GI -> FinalWinner = EWinTeam::Thief;
+		GI -> FinalWinner = EWinTeam::Thief;
 		SetMatchState(EMatchTypes::GameOver);
 		HandleGameOver();
 		RestartGame();
