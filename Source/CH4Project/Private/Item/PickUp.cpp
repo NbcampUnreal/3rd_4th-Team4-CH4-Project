@@ -28,7 +28,6 @@ void APickUp::Tick(float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 
 	if (IsNetMode(NM_DedicatedServer)) return; // 서버는 안 움직임
-	UE_LOG(LogTemp, Warning, TEXT("Tick 실행 중"));
 	// 회전
 	AddActorLocalRotation(FRotator(0.f, RotationSpeed * DeltaSeconds, 0.f));
 
