@@ -316,13 +316,10 @@ void ACH4GameMode::HandleGameOver()
 	ClearItems();
 	UE_LOG(LogTemp, Warning, TEXT("게임 오버 처리 완료"));
 
-	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	//이 파트에서 약간의 딜레이 있음. UnPossess 후 Destroy될 때, 레벨 화면이 잠시 출력되며 그 상황에서 출력할 내부 UI가 추가로 필요할 수 있음.
+	if (UWorld* World = GetWorld())
 	{
-		APlayerController* PC = It->Get();
-		if (PC)
-		{
-			PC->ClientTravel(TEXT("LobbyMap"), TRAVEL_Absolute);
-		}
+		World->ServerTravel(TEXT("LobbyMap?listen"));
 	}
 }
 
@@ -388,7 +385,7 @@ void ACH4GameMode::OnThiefCaught(APawn* ThiefPawn, APlayerController* ArrestingP
 	
 	ThiefPawn->Destroy();
 	//게임모드 파트에서 해당 작업을 삭제해야할 필요성 발생, 만약 래그돌, 죽음 애니메이션이 실행되어야할 경우 즉시 Destroy 하면 안됨.
-	//따라서 캐릭터 파트에서 애니메이션을 실행한 후 몇초 후 자체적으로 Destroy 하도록 구현해야함. -> 타이머 구조로 재구성해야함.
+	//따라서 캐릭터 파트에서 애니메이션을 실행한 후 몇초 후 자체적으로 Destroy 하도록 구현해야함. -> 이후 해당 캐릭터를 가져와서 함수를 불러와야함
 	
 	// 킬피드 전파
 	if (GS && GuardPS)

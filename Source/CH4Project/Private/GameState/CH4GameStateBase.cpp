@@ -10,7 +10,7 @@ ACH4GameStateBase::ACH4GameStateBase()
 	MatchTypes = EMatchTypes::WaitingToStart;
 	RemainingThieves = 0 ;
 	RemainingPolice = 0 ;
-	MatchTime = 60.f; //테스트 용으로 수정 가능
+	MatchTime = 600.f; //테스트 용으로 수정 가능
 	SpawnedAI = 0;
 	MaxAISpawn = 10;
 }
@@ -136,7 +136,6 @@ void ACH4GameStateBase::AddKillFeed(ACH4PlayerState* Guard, ACH4PlayerState* Thi
 
 	KillFeed.Add(Entry);
 
-	OnRep_KillFeed(); // 클라이언트에 즉시 반영
 }
 
 
