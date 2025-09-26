@@ -6,6 +6,8 @@
 
 class UTextBlock;
 class UVerticalBox;
+class UImage;
+class UBaseItem;
 /**
  * 
  */
@@ -27,6 +29,8 @@ public:
 	void UpdatePlayerRole(EPlayerRole NewRole);
 	UFUNCTION(BlueprintCallable)
 	void AddKillFeedEntry(const FString& KillerName, const FString& VictimName);
+	UFUNCTION(BlueprintCallable)
+	void UpdateInventoryUI(const TArray<UBaseItem*>& Inventory);
 
 	UPROPERTY(meta = (BindWidget))
 	UTextBlock* TimeText;
@@ -37,15 +41,15 @@ public:
 	UPROPERTY(meta = (BindWidget))
 	UTextBlock* ArrestsText;
 	UPROPERTY(meta = (BindWidget))
-	UTextBlock* StatusText;
-	UPROPERTY(meta = (BindWidget))
 	UVerticalBox* KillFeedBox;
+	UPROPERTY(meta = (BindWidget))
+	UImage* SlotImage_0;
+	UPROPERTY(meta = (BindWidget))
+	UImage* SlotImage_1;
 
 private:
-	FTimerHandle ClearTextTimerHandle;
 	EPlayerRole CurrentRole; 
 	
-	void ClearStatusText();
 	void RemoveKillEntry(UTextBlock* Entry);
 
 };
