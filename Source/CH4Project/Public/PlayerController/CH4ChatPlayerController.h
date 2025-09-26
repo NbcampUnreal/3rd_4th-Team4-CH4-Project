@@ -36,7 +36,7 @@ public:
 	void SetReady(bool bNewReady);
 
 	// 서버에서 준비 확인
-	UFUNCTION(Server, Reliable)
+	UFUNCTION(Server, Reliable, BlueprintCallable)
 	void Server_SetReady(bool bNewReady);
 
 	// 로비 플레이어 리스트 갱신

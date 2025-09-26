@@ -10,6 +10,8 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Kismet/GameplayStatics.h"
+#include "PlayerController/CH4PlayerController.h"
+#include "IngameUI/CH4UserWidget.h"
 #include "Item/BaseItem.h"
 #include "Item/PickUp.h"
 
@@ -219,8 +221,18 @@ void ACH4Character::OnOverlapBegin(UPrimitiveComponent* OverlappedComp,
 // 인벤토리 UI 업데이트 클라이언트 RPC
 void ACH4Character::ClientUpdateInventoryUI_Implementation()
 {
-	// 블루프린트에서 UI 업데이트 로직을 구현하도록 호출
-	UpdateHeldItemUI(Inventory.IsValidIndex(0) ? Inventory[0] : nullptr);
+	//UpdateHeldItemUI(Inventory.IsValidIndex(0) ? Inventory[0] : nullptr);
+	if (APlayerController* PC = Cast<APlayerController>(GetOwner()))
+	{
+		if (ACH4PlayerController* MyPC = Cast<ACH4PlayerController>(PC))
+		{
+			if (MyPC->MyHUDWidget)
+			{
+				// 빌드 오류때문에 주석 처리
+				//MyPC->MyHUDWidget->UpdateInventoryUI(Inventory);
+			}
+		}
+	}
 }
 
 // 아이템 사용
@@ -260,8 +272,6 @@ void ACH4Character::ServerUseItem_Implementation(int32 SlotIndex)
 	Inventory[SlotIndex]->UseItem(this);
 	UE_LOG(LogTemp, Warning, TEXT("Server: Use items in slot %d"), SlotIndex);
 
-	CurrentMaxWalkSpeed = RunSpeed;
-
 	// 아이템 사용 후 인벤토리에서 제거
 	Inventory[SlotIndex] = nullptr;
 
@@ -270,6 +280,18 @@ void ACH4Character::ServerUseItem_Implementation(int32 SlotIndex)
 
 	// 일정 시간 후에 다시 아이템을 사용할 수 있도록 설정
 	GetWorld()->GetTimerManager().SetTimerForNextTick(this, &ACH4Character::ResetUsingItem);
+}
+
+void ACH4Character::ServerResetMovementSpeed_Implementation()
+{
+	// 기본 걷기 속도로 되돌림
+	CurrentMaxWalkSpeed = WalkSpeed;
+	OnRep_MaxWalkSpeed(); // 클라이언트에도 변경된 속도 동기화
+
+	// 애니메이션 상태를 업데이트하기 위해 bIsRunning 변수를 false로 설정
+	bIsRunning = false;
+
+	UE_LOG(LogTemp, Warning, TEXT("Server: Speed reset to WalkSpeed"));
 }
 
 // 아이템 사용 상태를 초기화
