@@ -11,4 +11,8 @@ class CH4PROJECT_API UCokeItem : public UBaseItem
 
 public:
     virtual void UseItem_Implementation(ACH4Character* Character) override;
+    
+private:
+	    FTimerHandle TimerHandle_ResetSpeed;
+
 };
