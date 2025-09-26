@@ -51,6 +51,11 @@ void ACH4ChatGameMode::CheckAllPlayersReady()
     {
         UE_LOG(LogTemp, Log, TEXT("[Server] Players Ready %d/%d (Waiting...)"), Ready, Total);
     }
+
+    if (ACH4ChatGameState* GS = GetGameState<ACH4ChatGameState>())
+    {
+        GS->MulticastRefreshPlayerList();
+    }
 }
 
 void ACH4ChatGameMode::PostLogin(APlayerController* NewPlayer)

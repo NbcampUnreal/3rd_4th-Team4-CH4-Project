@@ -10,7 +10,7 @@ ACH4ChatPlayerState::ACH4ChatPlayerState()
 
 void ACH4ChatPlayerState::OnRep_IsReady()
 {
-
+    OnReadyStateChanged.Broadcast(bIsReady);
 }
 
 bool ACH4ChatPlayerState::ServerSetReady_Validate(bool bNewReady) { return true; }
