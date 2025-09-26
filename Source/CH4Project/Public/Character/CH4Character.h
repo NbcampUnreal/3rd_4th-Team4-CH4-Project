@@ -100,6 +100,9 @@ protected:
 	UFUNCTION()
 	void OnRep_IsDead();
 
+	UFUNCTION(Server, Reliable)
+	void ServerResetMovementSpeed();
+
 public:
 	// 애니메이션 관련
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Animation")
@@ -137,4 +140,10 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	UCameraComponent* CameraComp;
 
+	// 달리기 효과 지속 시간
+	UPROPERTY(EditDefaultsOnly, Category = "Movement")
+	float RunDuration = 5.0f;
+
+	// 타이머 핸들
+	FTimerHandle RunSpeedTimerHandle;
 };
