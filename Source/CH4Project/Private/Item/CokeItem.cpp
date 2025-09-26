@@ -9,7 +9,6 @@ void UCokeItem::UseItem_Implementation(ACH4Character* Character)
     if (!Character || !Character->GetCharacterMovement()) return;
     if (!Character->HasAuthority()) return;
 
-    //UCharacterMovementComponent* Movement = Character->GetCharacterMovement();
     UWorld* World = Character->GetWorld();
     if (!World) return;
 
