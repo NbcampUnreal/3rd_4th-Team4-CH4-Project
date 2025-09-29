@@ -4,8 +4,7 @@
 #include "GameFramework/PlayerController.h"
 #include "CH4ChatPlayerController.generated.h"
 
-
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnChatMessage, const FString&, Sender, const FString&, Message);
+class UCH4ChatUserWidget;
 
 UCLASS()
 class CH4PROJECT_API ACH4ChatPlayerController : public APlayerController
@@ -18,40 +17,39 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
+
 public:
-	// 클라이언트 -> 서버 채팅 메시지 전송
-	UFUNCTION(Server, Reliable, WithValidation)
-	void Server_SendChatMessage(const FString& Message);
-	bool Server_SendChatMessage_Validate(const FString& Message);
-	void Server_SendChatMessage_Implementation(const FString& Message);
-
-	// 서버 -> 클라이언트 채팅 메시지 수신
-	UFUNCTION(Client, Reliable)
-	void Client_ReceiveChatMessage(const FString& SenderPlayerName, const FString& Message);
-	void Client_ReceiveChatMessage_Implementation(const FString& SenderPlayerName, const FString& Message);
-
-	// 블루프린트에서 메시지를 UI에 표시
-	UPROPERTY(BlueprintAssignable, Category = "Chat")
-	FOnChatMessage OnChatMessageReceived;
-
-	// 블루프린트에서 호출할 수 있는 함수
-	UFUNCTION(BlueprintCallable, Category = "Chat")
-	void SendChatMessage(const FString& Message);
-
+	// 로비 화면
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
-	TSubclassOf<class UUserWidget> LobbyWidgetClass;
+	TSubclassOf<UCH4ChatUserWidget> LobbyWidgetClass;
 
-	// 결과 화면 위젯 클래스
+	// 로비 플레이어 리스트
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
+	TSubclassOf<class UUserWidget> LobbyProfileClass;
+
+	// 결과 화면
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
 	TSubclassOf<class UUserWidget> ResultScreen;
 
 	// 준비 확인
-	UFUNCTION(Server, Reliable)
+	UFUNCTION(BlueprintCallable, Category = "Lobby")
+	void SetReady(bool bNewReady);
+
+	// 서버에서 준비 확인
+	UFUNCTION(Server, Reliable, BlueprintCallable)
 	void Server_SetReady(bool bNewReady);
 
-	// 개인 클라이언트 게임 종료
-	UFUNCTION(BlueprintCallable, Category = "Game")
-	void ExitGame();
+	// 로비 플레이어 리스트 갱신
+	UFUNCTION(Client, Reliable)
+	void RefreshPlayerList();
+
+	// 로비 마우스 커서 분별
+	UFUNCTION(Client, Reliable)
+	void SetLobbyInput();
+
+	// 인게임 마우스 커서 분별
+	UFUNCTION(Client, Reliable)
+	void SetInGameInput();
 
 	// 클라이언트 결과 화면
 	// bIsWin == true, false
@@ -62,6 +60,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void ReturnLobby();
 
-protected:
-	void DisplayChatLocally(const FString& Sender, const FString& Message);
+	// 개인 클라이언트 게임 종료
+	UFUNCTION(BlueprintCallable, Category = "Game")
+	void ExitGame();
 };

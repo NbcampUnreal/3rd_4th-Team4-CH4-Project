@@ -2,9 +2,12 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "Components/TextBlock.h"
 #include "CH4UserWidget.generated.h"
 
+class UTextBlock;
+class UVerticalBox;
+class UImage;
+class UBaseItem;
 /**
  * 
  */
@@ -24,7 +27,10 @@ public:
 	void UpdateRemainingArrests(int32 RemainingArrests);
 	UFUNCTION(BlueprintCallable)
 	void UpdatePlayerRole(EPlayerRole NewRole);
-	
+	UFUNCTION(BlueprintCallable)
+	void AddKillFeedEntry(const FString& KillerName, const FString& VictimName);
+	UFUNCTION(BlueprintCallable)
+	void UpdateInventoryUI(const TArray<UBaseItem*>& Inventory);
 
 	UPROPERTY(meta = (BindWidget))
 	UTextBlock* TimeText;
@@ -35,10 +41,15 @@ public:
 	UPROPERTY(meta = (BindWidget))
 	UTextBlock* ArrestsText;
 	UPROPERTY(meta = (BindWidget))
-	UTextBlock* StatusText;
+	UVerticalBox* KillFeedBox;
+	UPROPERTY(meta = (BindWidget))
+	UImage* SlotImage_0;
+	UPROPERTY(meta = (BindWidget))
+	UImage* SlotImage_1;
 
 private:
-	FTimerHandle ClearTextTimerHandle;
+	EPlayerRole CurrentRole; 
+	
+	void RemoveKillEntry(UTextBlock* Entry);
 
-	void ClearStatusText();
 };

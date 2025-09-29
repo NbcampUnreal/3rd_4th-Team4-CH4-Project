@@ -3,17 +3,27 @@
 #include "Gamemode/CH4GameMode.h"
 #include "PlayerController/CH4PlayerController.h"
 #include "IngameUI/CH4UserWidget.h"
-
-//위젯 인클루드 필요
+#include "PlayerState/CH4PlayerState.h"
 
 ACH4GameStateBase::ACH4GameStateBase()
 {
 	MatchTypes = EMatchTypes::WaitingToStart;
 	RemainingThieves = 0 ;
 	RemainingPolice = 0 ;
-	MatchTime = 30.f; //테스트 용으로 20초로 설정해두었음.
+	MatchTime = 600.f; //테스트 용으로 수정 가능
 	SpawnedAI = 0;
 	MaxAISpawn = 10;
+}
+
+FString ACH4GameStateBase::GetRoleText(EPlayerRole InRole) const
+{
+	switch (InRole) // 플레이어 스테이트의 값을 문자열로 바꾸는 함수.
+	{
+	case EPlayerRole::Police:   return TEXT("Guard");
+	case EPlayerRole::Thief:   return TEXT("Thief");
+	case EPlayerRole::Citizen: return TEXT("Citizen");
+	default:                   return TEXT("???");
+	}
 }
 
 void ACH4GameStateBase::OnRep_MatchTypes()
@@ -103,6 +113,53 @@ void ACH4GameStateBase::OnRep_FinalResult()
 	// 클라에서 UI 갱신 등 처리 가능
 }
 
+//킬피드 파트 테스트 필요.
+void ACH4GameStateBase::AddKillFeed(ACH4PlayerState* Guard, ACH4PlayerState* Thief, const FString& VictimOverrideName)
+{
+	if (!HasAuthority()) return;
+
+	FKillFeedEntry Entry;
+	Entry.KillerName = Guard ? GetRoleText(Guard->PlayerRole) : TEXT("???");
+
+	if (Thief)
+	{
+		Entry.VictimName = GetRoleText(Thief->PlayerRole);
+	}
+	else if (!VictimOverrideName.IsEmpty())
+	{
+		Entry.VictimName = VictimOverrideName;
+	}
+	else
+	{
+		Entry.VictimName = TEXT("???");
+	}
+
+	KillFeed.Add(Entry);
+
+}
+
+
+
+
+void ACH4GameStateBase::OnRep_KillFeed()
+{
+	if (KillFeed.Num() > 0)
+	{
+		const FKillFeedEntry& LastEntry = KillFeed.Last();
+
+		// 모든 PlayerState에 알림
+		for (APlayerState* PS : PlayerArray)
+		{
+			if (ACH4PlayerState* MyPS = Cast<ACH4PlayerState>(PS))
+			{
+				MyPS->UpdateKillFeedUI(LastEntry.KillerName, LastEntry.VictimName);
+			}
+		}
+	}
+}
+
+
+
 void ACH4GameStateBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
@@ -114,4 +171,6 @@ void ACH4GameStateBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	DOREPLIFETIME(ACH4GameStateBase, SpawnedAI);
 	DOREPLIFETIME(ACH4GameStateBase, MaxAISpawn);
 	DOREPLIFETIME(ACH4GameStateBase, FinalResult);
+	DOREPLIFETIME(ACH4GameStateBase, KillFeed);
+
 }

@@ -8,7 +8,10 @@ ACH4PlayerController::ACH4PlayerController()
 	  MoveAction(nullptr),
 	  JumpAction(nullptr),
   	  LookAction(nullptr),
-	  SprintAction(nullptr)
+	  SprintAction(nullptr),
+	UseSlot1Action(nullptr),
+	UseSlot2Action(nullptr),
+	MyHUDWidget(nullptr)
 {
 }
 

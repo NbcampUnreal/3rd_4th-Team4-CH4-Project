@@ -7,6 +7,18 @@
 #include "Type/MatchTypes.h"
 #include "CH4GameStateBase.generated.h"
 
+USTRUCT(BlueprintType)
+struct FKillFeedEntry
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly)
+	FString KillerName;
+
+	UPROPERTY(BlueprintReadOnly)
+	FString VictimName;
+};
+
 UCLASS()
 class CH4PROJECT_API ACH4GameStateBase : public AGameStateBase
 {
@@ -57,6 +69,17 @@ public:
 	void ServerSetMatchState_Implementation(EMatchTypes NewMatchType);
 	bool ServerSetMatchState_Validate(EMatchTypes NewMatchType);
 
+	// 현재까지 발생한 모든 킬 로그
+	UPROPERTY(ReplicatedUsing=OnRep_KillFeed)
+	TArray<FKillFeedEntry> KillFeed;
+
+	// 서버에서 킬피드 추가
+	UFUNCTION(BlueprintCallable)
+	void AddKillFeed(ACH4PlayerState* Killer, ACH4PlayerState* Thief, const FString& VictimOverrideName = TEXT("Citizen"));
+	
+	UFUNCTION()
+	void OnRep_KillFeed();
+	
 	UFUNCTION()
 	void OnRep_MatchTypes();
 
@@ -70,4 +93,8 @@ public:
 	void OnRep_MatchTime();
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+private:
+	FString GetRoleText(EPlayerRole Role) const;
+
 };

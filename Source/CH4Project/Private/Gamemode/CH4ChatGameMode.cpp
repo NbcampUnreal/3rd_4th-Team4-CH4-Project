@@ -1,17 +1,18 @@
-#include "Gamemode/CH4ChatGameMode.h"
+Ôªø#include "Gamemode/CH4ChatGameMode.h"
 #include "GameState/CH4ChatGameState.h"
 #include "PlayerController/CH4ChatPlayerController.h"
 #include "PlayerState/CH4ChatPlayerState.h"
 #include "Kismet/GameplayStatics.h"
 
-// ∞‘¿” ∏µÂ «“¥Á Ω√ ±‚∫ª¿˚¿∏∑Œ ≈æ¿Áµ«¥¬ ≈¨∑°Ω∫
+// Í≤åÏûÑ Î™®Îìú Ìï†Îãπ Ïãú Í∏∞Î≥∏Ï†ÅÏúºÎ°ú ÌÉëÏû¨ÎêòÎäî ÌÅ¥ÎûòÏä§
 ACH4ChatGameMode::ACH4ChatGameMode()
 {
 	PlayerControllerClass = ACH4ChatPlayerController::StaticClass();
 	PlayerStateClass = ACH4ChatPlayerState::StaticClass();
 	GameStateClass = ACH4ChatGameState::StaticClass();
 }
-// ∑Œ∫Ò ∏  Ω««‡ Ω√ UI¿€µø -> ƒ¡∆Æ∑—∑Øø°º≠ ¥ŸΩ√ ∏∏µÈ±‚
+
+// Î°úÎπÑ Îßµ Ïã§Ìñâ Ïãú UIÏûëÎèô -> Ïª®Ìä∏Î°§Îü¨ÏóêÏÑú Îã§Ïãú ÎßåÎì§Í∏∞
 void ACH4ChatGameMode::BeginPlay()
 {
     Super::BeginPlay();
@@ -20,27 +21,137 @@ void ACH4ChatGameMode::BeginPlay()
 
 void ACH4ChatGameMode::CheckAllPlayersReady()
 {
-    if (!GameState) return;
+    int32 Total = 0;
+    int32 Ready = 0;
 
-    bool bAllReady = true;
-    for (APlayerState* PS : GameState->PlayerArray)
+    if (UWorld* World = GetWorld())
     {
-        if (const auto MyPS = Cast<ACH4ChatPlayerState>(PS))
+        for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
         {
-            if (!MyPS->IsReady()) { bAllReady = false; break; }
+            APlayerController* PC = It->Get();
+            if (!PC) continue;
+
+            if (ACH4ChatPlayerState* P = Cast<ACH4ChatPlayerState>(PC->PlayerState))
+            {
+                ++Total;
+                if (P->IsReady())
+                {
+                    ++Ready;
+                }
+            }
         }
     }
 
-    if (bAllReady)
+    if (Total >= 2 && Total == Ready)
     {
+        UE_LOG(LogTemp, Log, TEXT("[Server] All players ready. Starting game..."));
         StartGame();
+    }
+    else
+    {
+        UE_LOG(LogTemp, Log, TEXT("[Server] Players Ready %d/%d (Waiting...)"), Ready, Total);
+    }
+
+    if (ACH4ChatGameState* GS = GetGameState<ACH4ChatGameState>())
+    {
+        GS->MulticastRefreshPlayerList();
+    }
+}
+
+void ACH4ChatGameMode::PostLogin(APlayerController* NewPlayer)
+{
+    Super::PostLogin(NewPlayer);
+
+    FString PlayerName = TEXT("Unknown");
+    if (NewPlayer && NewPlayer->PlayerState)
+    {
+        PlayerName = NewPlayer->PlayerState->GetPlayerName();
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("[Server] %s has joined the game"), *PlayerName);
+
+    int32 Total = 0, Ready = 0;
+    if (UWorld* World = GetWorld())
+    {
+        for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
+        {
+            APlayerController* PC = It->Get();
+            if (!PC) continue;
+
+            if (ACH4ChatPlayerState* P = Cast<ACH4ChatPlayerState>(PC->PlayerState))
+            {
+                ++Total;
+                if (P->IsReady()) ++Ready;
+            }
+        }
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("[Server] Players now: %d (Ready %d/%d)"), Total, Ready, Total);
+
+    if (ACH4ChatGameState* GS = GetGameState<ACH4ChatGameState>())
+    {
+        GS->MulticastRefreshPlayerList();
+    }
+}
+
+void ACH4ChatGameMode::Logout(AController* Exiting)
+{
+    FString PlayerName = TEXT("Unknown");
+    bool bWasReady = false;
+    if (Exiting && Exiting->PlayerState)
+    {
+        PlayerName = Exiting->PlayerState->GetPlayerName();
+        if (ACH4ChatPlayerState* MyPS = Cast<ACH4ChatPlayerState>(Exiting->PlayerState))
+        {
+            bWasReady = MyPS->IsReady();
+        }
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("[Server] %s has left the game (Ready=%s)"),
+        *PlayerName, bWasReady ? TEXT("true") : TEXT("false"));
+
+    Super::Logout(Exiting);
+
+    int32 Total = -1, Ready = 0;
+    if (UWorld* World = GetWorld())
+    {
+        for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
+        {
+            APlayerController* PC = It->Get();
+            if (!PC) continue;
+
+            if (ACH4ChatPlayerState* P = Cast<ACH4ChatPlayerState>(PC->PlayerState))
+            {
+                ++Total;
+                if (P->IsReady()) ++Ready;
+            }
+        }
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("[Server] Players remaining: %d (Ready %d/%d)"),
+        Total, Ready, Total);
+
+    // Î™®Îì† ÌÅ¥ÎùºÏù¥Ïñ∏Ìä∏Ïóê Î°úÎπÑ Î¶¨Ïä§Ìä∏ Í∞±Ïã†
+    if (ACH4ChatGameState* GS = GetGameState<ACH4ChatGameState>())
+    {
+        GS->MulticastRefreshPlayerList();
     }
 }
 
 void ACH4ChatGameMode::StartGame()
 {
-    UWorld* World = GetWorld();
-    if (!World) return;
+    if (UWorld* World = GetWorld())
+    {
+        // Ïù∏Í≤åÏûÑ ÏûÖÎ†• Î™®ÎìúÎ°ú Ï†ÑÌôò
+        for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
+        {
+            if (ACH4ChatPlayerController* PC = Cast<ACH4ChatPlayerController>(It->Get()))
+            {
+                PC->SetInGameInput();
+            }
+        }
 
-    World->ServerTravel(TEXT("/Game/Maps/InGameMap_Prototype?listen"));
+        // Îßµ Ïù¥Îèô
+        World->ServerTravel(TEXT("InGameMap_Prototype"));
+    }
 }

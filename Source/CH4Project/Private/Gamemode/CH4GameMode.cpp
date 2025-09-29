@@ -8,6 +8,7 @@
 #include "GameState/CH4GameStateBase.h"
 #include "PlayerState/CH4PlayerState.h"
 #include "PlayerController/CH4PlayerController.h"
+#include "Type/MatchTypes.h"
 #include "Kismet/GameplayStatics.h"
 #include "Algo/RandomShuffle.h"
 #include "NavigationSystem.h"
@@ -15,6 +16,7 @@
 #include "SpawnVolume/PlayerSpawnVolume.h"
 #include "SpawnVolume/AISpawnVolume.h"
 #include "EngineUtils.h"
+#include "GameInstance/CH4GameInstance.h"
 #include "SpawnVolume/ItemSpawnVolume.h"
 #include "IngameUI/CH4UserWidget.h"
 
@@ -31,36 +33,73 @@ void ACH4GameMode::BeginPlay()
 {
 	Super::BeginPlay();
 
-
-	// 레벨에 배치된 모든 SpawnVolume Actor 참조 가져오기 추후 AI, 캐릭터 스폰에 사용하기 위한 기초 로직.
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseSpawnVolume::StaticClass(), SpawnVolumes);
-
-
-
+	//게임 인스턴스에 저장된 승리한 역할군, 마지막 역할, 매치 진행 상태를 초기화 하는 구조로 재시작 시 게임 인스턴스를 초기화하기 위한 로직.
+	if (UCH4GameInstance* GI = GetGameInstance<UCH4GameInstance>())
+	{
+		GI-> FinalWinner = EWinTeam::None;
+		GI-> LastRoles.Empty();
+		GI-> LastMatchState = EMatchTypes::WaitingToStart;
+	}
 	
-	GetWorldTimerManager().SetTimer(GameStartTimerHandle, this, &ACH4GameMode::AssignRoles, 5.f, false);
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseSpawnVolume::StaticClass(), SpawnVolumes);
+	UE_LOG(LogTemp, Warning, TEXT("총 SpawnVolumes: %d"), SpawnVolumes.Num());
+
+	for (AActor* Actor : SpawnVolumes)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SpawnVolume: %s (%s)"), *Actor->GetName(), *Actor->GetClass()->GetName());
+	}
+	
+	//GetWorldTimerManager().SetTimer(GameStartTimerHandle, this, &ACH4GameMode::AssignRoles, 5.f, false);
 	//추후 딜레이 수정 후 실제 플레이어들이 포함되는 테스트가 필요.
 	//로비 -> 게임레벨 구조라면 기본 플레이어 컨트롤러가 이미 서버에서 관리 중이기 때문에 완성 후 딜레이를 줄이는 것은 큰 문제는 없을 것으로 추정됨.
-	//Only Local Player Controllers can be assigned to widgets. BP_CH4PlayerController_C_0 is not a Local Player Controller. 이런 에러 문구가 뜨며, 추후 플레이어 컨트롤러에서
-	//플레이어 컨트롤러에서 if (IsLocalController())를 추가해서 로컬 플레이어만 처리하도록 수정해야함.
+	// + 실제론 로비 플레이어 컨트롤러, 플레이어스테이트 등 파트가 독립적으로 구현되었기 때문에 딜레이는 필수적으로 있어야 할 것으로 보임.
 	//추가로 기존 5초 딜레이 중 추가적인 인게임 위젯으로 5초간 대기 시간 동안 역할 설명 및 로딩 화면 표현이 필요할 것으로 보임.
 	//디폴트 폰 클래스를 추가하면 기본 스폰된 캐릭터들이 플레이어 스타트 지점에 플레이어 수 만큼 캐릭터들이 스폰되어 있기 때문에 초기 시작 화면이 어색함.
- 
-
-	//GetWorldTimerManager().SetTimer(GameStartTimerHandle, this, &ACH4GameMode::TestAssignRoles8Players, 10.f, false);
-	//테스트용 로직에선 플레이어 컨트롤러가 로드된 이후에 스폰해야하기 때문에 10초로 설정
-
-	StartItemSpawnTimer();
-
+	
 }
 
-
-
+// PostLogin 수정
 void ACH4GameMode::PostLogin(APlayerController* NewPlayer)
 {
 	Super::PostLogin(NewPlayer);
-	//로비에 들어온 후 레벨로 넘어오는 구조인 상황에서, 로그인 구조를 게임모드에서 관리(?)
+
+	UE_LOG(LogTemp, Log, TEXT("PostLogin: %s 접속"), *NewPlayer->GetName());
+
+	// 짧은 딜레이 후 역할 배정 시도
+	FTimerHandle DummyHandle;
+    GetWorldTimerManager().SetTimer(DummyHandle, this, &ACH4GameMode::TryAssignRoles, 5.0f, false);
+	//딜레이가 없을 시 정상적인 스폰이 불가, 내부 로딩 UI가 필요할 것으로 추정.
+
+	if (HasAuthority())
+	{
+		StartItemSpawnTimer();
+	}
 }
+
+// 모든 플레이어가 접속했는지 확인 후 AssignRoles 호출
+void ACH4GameMode::TryAssignRoles()
+{
+	if (!HasAuthority() || bRolesAssigned) return;
+
+	ACH4GameStateBase* GS = GetGameState<ACH4GameStateBase>();
+	if (!GS) return;
+
+	int32 NumPlayers = GS->PlayerArray.Num();
+	if (NumPlayers < 1) return;
+
+	// 모든 PlayerState가 nullptr 아닌지 확인
+	for (APlayerState* PS : GS->PlayerArray)
+	{
+		if (!PS) return; // 아직 초기화 안됨
+	}
+
+	AssignRoles();
+	bRolesAssigned = true;
+}
+
+
+
+
 
 void ACH4GameMode::SetMatchState(EMatchTypes NewMatchType)
 {
@@ -80,7 +119,11 @@ void ACH4GameMode::AssignRoles()
 		return;
 	}
 
+	
 	int32 NumPlayers = GS->PlayerArray.Num();
+	UE_LOG(LogTemp, Log, TEXT("AssignRoles 호출: 플레이어 수 = %d"), NumPlayers);
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, FString::Printf(TEXT("AssignRoles 호출: %d 플레이어"), NumPlayers));
+
 	if (NumPlayers <= 0)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("AssignRoles: 플레이어가 없습니다."));
@@ -109,11 +152,16 @@ void ACH4GameMode::AssignRoles()
 		{
 			TPS->SetPlayerRole(EPlayerRole::Thief);
 		}
+
+		UE_LOG(LogTemp, Log, TEXT("Player %s 역할 배정: %s"), *TPS->GetPlayerName(), *UEnum::GetValueAsString(TPS->PlayerRole));
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green,
+			FString::Printf(TEXT("Player %s 역할: %s"), *TPS->GetPlayerName(), *UEnum::GetValueAsString(TPS->PlayerRole)));
 	}
 
 	GS->RemainingPolice = NumPolice;
 	GS->RemainingThieves = NumThieves;
-
+	UE_LOG(LogTemp, Log, TEXT("AssignRoles 완료: 경찰 %d, 도둑 %d"), NumPolice, NumThieves);
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Cyan, TEXT("AssignRoles 완료"));
 	
 	SpawnActors(AIClassesToSpawn, AISpawnRadius);
 
@@ -145,11 +193,15 @@ void ACH4GameMode::UpdateMatchTime()
 void ACH4GameMode::CheckWinCondition() //승리 조건 체크 로직으로 추후 필요 시 조건 추가 필요.
 {
 	ACH4GameStateBase* GS = GetGameState<ACH4GameStateBase>();
+	UCH4GameInstance* GI = GetGameInstance<UCH4GameInstance>();
+	
+	
 	if (!GS) return;
 
 	if (GS->RemainingThieves <= 0) //경찰 승리조건
 	{
-		FinalWinner = EWinTeam::Police;
+		//게임 인스턴스에 게임모드, 즉 서버가 직접 개입하면 문제 발생 이 파트를 게임 스테이트에서 저장용으로 지정한 후, 게임스테이트의 함수를 불러오는 방식으로 구현해야함.
+		GI -> FinalWinner = EWinTeam::Police;
 		SetMatchState(EMatchTypes::GameOver);
 		HandleGameOver();
 		RestartGame();
@@ -157,7 +209,7 @@ void ACH4GameMode::CheckWinCondition() //승리 조건 체크 로직으로 추�
 	}
 	if (GS->MatchTime <= 0.f)
 	{
-		FinalWinner = EWinTeam::Thief;
+		GI -> FinalWinner = EWinTeam::Thief;
 		SetMatchState(EMatchTypes::GameOver);
 		HandleGameOver();
 		RestartGame();
@@ -165,7 +217,7 @@ void ACH4GameMode::CheckWinCondition() //승리 조건 체크 로직으로 추�
 	}
 	else if (GS->RemainingPolice <= 0 )
 	{
-		FinalWinner = EWinTeam::Thief;
+		GI -> FinalWinner = EWinTeam::Thief;
 		SetMatchState(EMatchTypes::GameOver);
 		HandleGameOver();
 		RestartGame();
@@ -176,28 +228,33 @@ void ACH4GameMode::HandleGameOver()
 {
 	GetWorldTimerManager().ClearTimer(MatchTimerHandle);
 
-	//GetWorldTimerManager().ClearTimer(MatchTimerHandle);
-	//아이템 스폰 타이머도 초기화 필요.
+	ACH4GameStateBase* GS = GetGameState<ACH4GameStateBase>();
 	
-	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	if (UCH4GameInstance* GI = GetGameInstance<UCH4GameInstance>())
 	{
-		ACH4PlayerController* MyPC = Cast<ACH4PlayerController>(It->Get());
-		if (MyPC && MyPC->MyHUDWidget)
+		UE_LOG(LogTemp, Log, TEXT("[HandleGameOver] GameInstance 확인 완료"));
+		
+		GI->LastMatchState = EMatchTypes::GameOver;
+		UE_LOG(LogTemp, Log, TEXT("[HandleGameOver] LastMatchState = GameOver로 설정"));
+
+		GI->LastRoles.Empty();
+		UE_LOG(LogTemp, Log, TEXT("[HandleGameOver] LastRoles 초기화"));
+
+		for (APlayerState* PS : GS->PlayerArray)
 		{
-			if (MyPC->MyHUDWidget->IsInViewport())
+			if (ACH4PlayerState* MyPS = Cast<ACH4PlayerState>(PS))
 			{
-				MyPC->MyHUDWidget->RemoveFromParent();
+				FString PlayerIdStr = MyPS->GetPlayerName();
+				//추후 플레이어 스테이트에 닉네임 과정이 추가되서 저장된다면 해당 닉네임이 추가되지만, 여기선 역할 저장용이기 때문에 굳이 중요하진 않음
+				GI->LastRoles.Add(PlayerIdStr, MyPS->GetPlayerRole());
+				UE_LOG(LogTemp, Log, TEXT("게임 인스턴스에 ID 별로 역할군 저장 완료"));
+
 			}
-			MyPC->MyHUDWidget = nullptr;
 		}
-
-		//아이템 스폰 타이머 클리어로 추가 아이템 스폰 중지.
-		GetWorldTimerManager().ClearTimer(ItemSpawnTimerHandle);
-
 	}
+	
 
- // AI 캐릭터 및 플레이어 캐릭터 삭제용 로직
- // 만약 로비에서 캐릭터가 움직이며 대기하는 구조라면 불필요한 로직이나, 그렇게 될 시 래그돌, 혹은 사망 애니메이션으로 가사 상태로 캐릭터가 구현되어야 할 듯
+	// AI 캐릭터 및 플레이어 캐릭터 삭제용 로직
 	TArray<APawn*> PawnsToDestroy;
 
 	for (TActorIterator<APawn> It(GetWorld()); It; ++It)
@@ -234,24 +291,42 @@ void ACH4GameMode::HandleGameOver()
 			TPS->SetPlayerRole(EPlayerRole::Unassigned);
 		}
 	}
-	
-	//기존 상단에서 타 파트를 우선 실행한 후, 로비 귀환, 및 결과 위젯 실행을 위해 위치 변경.
+
+	/* 결과창이 레벨 게임모드에서 관리하게 되면 수정해야할 소요가 있음.
 	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
 	{
-		APlayerController* PC = It->Get();
-		if (PC)
+		ACH4PlayerController* MyPC = Cast<ACH4PlayerController>(It->Get());
+		if (MyPC && MyPC->MyHUDWidget)
 		{
-			PC->ClientTravel(TEXT("/Game/Maps/LobbyMap.umap"), TRAVEL_Absolute);
+			if (MyPC->MyHUDWidget->IsInViewport())
+			{
+				MyPC->MyHUDWidget->RemoveFromParent();
+			}
+			MyPC->MyHUDWidget = nullptr;
 		}
+
+		//아이템 스폰 타이머 클리어로 추가 아이템 스폰 중지.
+		GetWorldTimerManager().ClearTimer(ItemSpawnTimerHandle);
+
 	}
-	
+	*/
+
+	//게임 모드 내 모든 타이머 초기화
+	GetWorldTimerManager().ClearAllTimersForObject(this);
 	ClearItems();
 	UE_LOG(LogTemp, Warning, TEXT("게임 오버 처리 완료"));
 
+	//이 파트에서 약간의 딜레이 있음. UnPossess 후 Destroy될 때, 레벨 화면이 잠시 출력되며 그 상황에서 출력할 내부 UI가 추가로 필요할 수 있음.
+	if (UWorld* World = GetWorld())
+	{
+		World->ServerTravel(TEXT("LobbyMap?listen"));
+	}
 }
 
 void ACH4GameMode::RestartGame()
 {
+	if (!HasAuthority()) return;
+
 	ACH4GameStateBase* GS = GetGameState<ACH4GameStateBase>();
 	if (GS)
 	{
@@ -281,10 +356,11 @@ void ACH4GameMode::RestartGame()
 
 		UE_LOG(LogTemp, Warning, TEXT("=========================="));
 	}
+	
 }
 
 
-void ACH4GameMode::OnThiefCaught(APawn* ThiefPawn) // 추후 정상적으로 해당 캐릭터가 해제되는지 확인 필요.
+void ACH4GameMode::OnThiefCaught(APawn* ThiefPawn, APlayerController* ArrestingPlayer)
 {
 	if (!HasAuthority()) return;
 
@@ -293,18 +369,30 @@ void ACH4GameMode::OnThiefCaught(APawn* ThiefPawn) // 추후 정상적으로 해
 
 	GS->RemainingThieves = FMath::Max(0, GS->RemainingThieves - 1);
 	UE_LOG(LogTemp, Warning, TEXT("도둑 체포됨"));
-	
-	if (ThiefPawn)
-	{
-		AController* Controller = ThiefPawn->GetController();
-		if (Controller)
-		{
-			Controller->UnPossess();
-		}
 
-		ThiefPawn->Destroy();
+	// 도둑 플레이어 스테이트 확보
+	ACH4PlayerState* VictimPS = ThiefPawn->GetController() 
+		? Cast<ACH4PlayerState>(ThiefPawn->GetController()->PlayerState) 
+		: nullptr;
+	
+	// 경찰의 플레이어스테이트 확보 + 실제 UI 출력 이후 어떻게 될 지 테스트 필요함.
+	ACH4PlayerState* GuardPS = Cast<ACH4PlayerState>(ArrestingPlayer->PlayerState);
+
+	if (ThiefPawn->GetController())
+	{
+		ThiefPawn->GetController()->UnPossess();
 	}
 	
+	ThiefPawn->Destroy();
+	//게임모드 파트에서 해당 작업을 삭제해야할 필요성 발생, 만약 래그돌, 죽음 애니메이션이 실행되어야할 경우 즉시 Destroy 하면 안됨.
+	//따라서 캐릭터 파트에서 애니메이션을 실행한 후 몇초 후 자체적으로 Destroy 하도록 구현해야함. -> 이후 해당 캐릭터를 가져와서 함수를 불러와야함
+	
+	// 킬피드 전파
+	if (GS && GuardPS)
+	{
+		GS->AddKillFeed(GuardPS, VictimPS);
+	}
+
 	CheckWinCondition();
 }
 
@@ -314,15 +402,23 @@ void ACH4GameMode::OnAICaught(APlayerController* ArrestingPlayer, APawn* AI, boo
 {
 	if (!AI || !ArrestingPlayer) return;
 
+	// 경찰 PlayerState 가져오기
+	ACH4PlayerState* GuardPS = ArrestingPlayer->GetPlayerState<ACH4PlayerState>();
+	if (!GuardPS) return;
+	
 	AI->Destroy();
-
-	ACH4PlayerState* PolicePS = ArrestingPlayer->GetPlayerState<ACH4PlayerState>();
-	if (!PolicePS) return;
 
 	if (bIsCitizen)
 	{
-		PolicePS->RemainingArrests--;
-		CheckArrestLimit(PolicePS);
+		ACH4GameStateBase* GS = GetGameState<ACH4GameStateBase>();
+		if (GS)
+		{
+			GS->AddKillFeed(GuardPS, nullptr, TEXT("Citizen"));
+		}
+
+		// 경찰 RemainingArrests 감소
+		GuardPS->RemainingArrests--;
+		CheckArrestLimit(GuardPS);
 	}
 }
 
@@ -341,7 +437,7 @@ void ACH4GameMode::HandleArrest(APlayerController* ArrestingPlayer, APawn* Targe
 	switch (MPS->PlayerRole)
 	{
 	case EPlayerRole::Thief:
-		OnThiefCaught(TargetPawn);
+		OnThiefCaught(TargetPawn, ArrestingPlayer);
 		break;
 
 	case EPlayerRole::Police:
@@ -371,13 +467,16 @@ void ACH4GameMode::CheckArrestLimit(ACH4PlayerState* PolicePS) // 직관적인 �
     		if (Pawn)
     		{
     			Pawn->Destroy();
+    			ACH4GameStateBase* GS = GetGameState<ACH4GameStateBase>();
+    			GS->RemainingPolice--;
     		}
     	}
 
-    	PolicePS->SetPlayerRole(EPlayerRole::Unassigned);
+    	CheckWinCondition();
     }
 }
 
+/*
 //삭제 필요 로직
 void ACH4GameMode::UpdateMaxArrests()
 {
@@ -420,11 +519,16 @@ void ACH4GameMode::UpdateMaxArrests()
 	UE_LOG(LogTemp, Log, TEXT("최대 체포 횟수 갱신: %d (경찰 %d명, 타겟 %d명, 계수 %.2f)"),
 		MaxArrestsPerPlayer, NumPolice, TotalTargets, ArrestMultiplier);
 }
-
+*/
 
 //스폰 구조 통합 관리하는 로직
 void ACH4GameMode::SpawnActors(TArray<TSubclassOf<APawn>> AIClasses, float InAISpawnRadius)
 {
+	if (!HasAuthority()) return;
+
+	UE_LOG(LogTemp, Log, TEXT("SpawnActors 호출"));
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, TEXT("SpawnActors 호출"));
+	
     if (!HasAuthority() || SpawnVolumes.Num() == 0) 
     {
     	UE_LOG(LogTemp, Warning, TEXT("스폰 볼륨이 없습니다."));
@@ -486,6 +590,7 @@ void ACH4GameMode::SpawnActors(TArray<TSubclassOf<APawn>> AIClasses, float InAIS
 			continue;
 		}
 
+		
 		//AI가 바닥 안에 스폰되는 케이스를 해결하기 위한 지면 보정.
 		FVector AdjustedLocation = RandomPoint.Location;
 		FHitResult Hit;
@@ -507,9 +612,9 @@ void ACH4GameMode::SpawnActors(TArray<TSubclassOf<APawn>> AIClasses, float InAIS
 		// 스폰
 		FActorSpawnParameters SpawnParams;
 		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-		//FVector NavSpawnLoc = RandomPoint.Location;
-		//NavSpawnLoc.Z += 50.f;
-		APawn* NewAI = GetWorld()->SpawnActor<APawn>(AIClass, AdjustedLocation, FRotator::ZeroRotator, SpawnParams);
+		FVector NavSpawnLoc = RandomPoint.Location;
+		NavSpawnLoc.Z += 50.f;
+		APawn* NewAI = GetWorld()->SpawnActor<APawn>(AIClass, NavSpawnLoc, FRotator::ZeroRotator, SpawnParams);
 		if (NewAI)
 		{
 			SpawnedCount++;
@@ -519,7 +624,7 @@ void ACH4GameMode::SpawnActors(TArray<TSubclassOf<APawn>> AIClasses, float InAIS
 
 #if WITH_EDITOR
 		// === 디버그: 스폰 위치 시각화 (에디터에서만) ===
-		DrawDebugSphere(GetWorld(), AdjustedLocation, 50.f, 12, FColor::Green, false, 5.f);
+		DrawDebugSphere(GetWorld(), NavSpawnLoc, 50.f, 12, FColor::Green, false, 5.f);
 #endif
 	}
 
@@ -575,190 +680,9 @@ void ACH4GameMode::SpawnActors(TArray<TSubclassOf<APawn>> AIClasses, float InAIS
 }
 
 
-
-
-//동작 테스트용 함수
-void ACH4GameMode::TestAssignRoles8Players()
-{
-	if (!HasAuthority()) return;
-
-	ACH4GameStateBase* GS = GetGameState<ACH4GameStateBase>();
-	if (!GS) return;
-
-	TArray<APlayerState*> PlayerStates = GS->PlayerArray;
-	if (PlayerStates.Num() == 0)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("TestAssignRoles8Players: 플레이어가 없습니다."));
-		return;
-	}
-
-	// 안정적인 Pawn 스폰/포제스 처리
-	CheckControllersAndSpawn(PlayerStates);
-}
-
-
-void ACH4GameMode::CheckControllersAndSpawn(const TArray<APlayerState*>& PlayerStates)
-{
-    bool bAllControllersReady = true;
-
-    int32 Index = 0;
-    for (APlayerState* PS : PlayerStates)
-    {
-        ACH4PlayerState* TPS = Cast<ACH4PlayerState>(PS);
-        if (!TPS) continue;
-
-        // PlayerController를 PlayerState 기준으로 찾아오기
-        APlayerController* PC = nullptr;
-        for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
-        {
-            APlayerController* TmpPC = It->Get();
-            if (TmpPC && TmpPC->PlayerState == TPS)
-            {
-                PC = TmpPC;
-                break;
-            }
-        }
-
-        if (!PC)
-        {
-            bAllControllersReady = false;
-            continue;
-        }
-
-        // Pawn이 없으면 Spawn + Possess
-        if (!TPS->GetPawn())
-        {
-            TSubclassOf<APawn> PawnClassToSpawn = nullptr;
-            switch (TPS->PlayerRole)
-            {
-                case EPlayerRole::Police: PawnClassToSpawn = PolicePawnClass; break;
-                case EPlayerRole::Thief:  PawnClassToSpawn = ThiefPawnClass;  break;
-                default: continue;
-            }
-            if (!PawnClassToSpawn) continue;
-
-            FVector SpawnLoc = FVector(200.f * Index, 0.f, 100.f); // 테스트용 위치 분산
-            FRotator SpawnRot = FRotator::ZeroRotator;
-
-            APawn* PlayerPawn = GetWorld()->SpawnActor<APawn>(PawnClassToSpawn, SpawnLoc, SpawnRot);
-            if (!PlayerPawn) continue;
-
-            PlayerPawn->SetReplicates(true);
-            PlayerPawn->SetReplicateMovement(true);
-            PC->Possess(PlayerPawn);
-
-            UE_LOG(LogTemp, Log, TEXT("%s 스폰 및 Possess 완료"), *TPS->GetPlayerName());
-        }
-
-        Index++;
-    }
-
-    if (!bAllControllersReady)
-    {
-        // 모든 컨트롤러가 준비될 때까지 0.2초 후 재시도
-        FTimerHandle RetryTimerHandle;
-        GetWorldTimerManager().SetTimer(RetryTimerHandle, [this, PlayerStates]()
-        {
-            CheckControllersAndSpawn(PlayerStates);
-        }, 0.2f, false);
-
-        return;
-    }
-
-    // 모든 컨트롤러 준비 완료 -> 역할 배정 및 로그
-    AssignRoles();
-
-    UE_LOG(LogTemp, Log, TEXT("==== TestAssignRoles8Players ===="));
-    for (APlayerState* PS : PlayerStates)
-    {
-        if (ACH4PlayerState* TPS = Cast<ACH4PlayerState>(PS))
-        {
-            UE_LOG(LogTemp, Log, TEXT("%s 역할: %s, Pawn: %s"),
-                *TPS->GetPlayerName(),
-                *UEnum::GetValueAsString(TPS->PlayerRole),
-                TPS->GetPawn() ? TEXT("Spawned") : TEXT("None"));
-        }
-    }
-}
-
-
-
-// 플레이어가 아이템 박스 겹쳤을 때 서버에서 처리 : 마리오카트처럼, 무작위 아이템
-// 추후 플레이어 컨트롤러로 확정될 시 수정 필요
-void ACH4GameMode::GivePlayerItem(APlayerController* Player, FName ItemID)
-{
-	// 서버 권한 확인
-	if (!HasAuthority() || !Player) return;
-
-	// 서버에서 GameState 가져오기
-	ACH4GameStateBase* GS = GetWorld() ? GetWorld()->GetGameState<ACH4GameStateBase>() : nullptr;
-	if (!GS)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("GivePlayerItem: GameState가 없습니다."));
-		return;
-	}
-
-	// PlayerState 가져오기
-	if (ACH4PlayerState* PS = Player->GetPlayerState<ACH4PlayerState>())
-	{
-		PS->AddItemToInventory(ItemID);
-		UE_LOG(LogTemp, Log, TEXT("Gave Item %s to Player %s"), *ItemID.ToString(), *PS->GetPlayerName());
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("GivePlayerItem: PlayerState를 가져오지 못했습니다."));
-	}
-}
-
 //마리오카트처럼 랜덤 아이템 스폰 방식
 //서버 내에서만 관리할 스폰 로직으로, 게임 스테이트, 플레이어 스테이트에서 관리하지 않음.
-//1분마다 기존 스폰된 아이템 박스를 삭제하고, 새로운 위치에 아이템 박스를 스폰하는 시스템.
-
-//공중에서 스폰되는 케이스 발생으로, 이 로직을 사용할 시 아이템스폰볼륨을 레벨 내에 다수 배치해 두어야할 듯.
-/*
-void ACH4GameMode::SpawnItems()
-{
-	if (!HasAuthority()) return;
-
-	// 기존 아이템 삭제
-	ClearItems();
-
-	if (ItemSpawnVolumes.Num() == 0)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("SpawnItems: ItemSpawnVolumes가 없습니다."));
-		return;
-	}
-
-	int32 ItemsToSpawn = MaxItemCount;
-
-	for (int32 i = 0; i < ItemsToSpawn; ++i)
-	{
-		// 랜덤 볼륨 선택
-		int32 VolumeIndex = FMath::RandRange(0, ItemSpawnVolumes.Num() - 1);
-		AItemSpawnVolume* Volume = ItemSpawnVolumes[VolumeIndex];
-		if (!Volume || Volume->ItemClasses.Num() == 0) continue;
-
-		// 랜덤 아이템 선택
-		int32 ClassIndex = FMath::RandRange(0, Volume->ItemClasses.Num() - 1);
-		TSubclassOf<AActor> ItemClass = Volume->ItemClasses[ClassIndex];
-
-		FVector SpawnLocation = Volume->GetSpawnLocation();
-
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-
-		AActor* NewItem = GetWorld()->SpawnActor<AActor>(ItemClass, SpawnLocation, FRotator::ZeroRotator, SpawnParams);
-		if (NewItem)
-		{
-			NewItem->SetReplicates(true);
-			SpawnedItems.Add(NewItem);
-			CurrentItemCount++;
-		}
-	}
-
-	UE_LOG(LogTemp, Log, TEXT("아이템 스폰 완료: %d/%d"), CurrentItemCount, MaxItemCount);
-}
-*/
+//1분마다 기존 스폰된 아이템 박스를 삭제하고, 새로운 위치에 아이템 박스를 스폰
 
 //네비매쉬가 존재할 경우만 아이템을 스폰하는 예시 로직.
 void ACH4GameMode::SpawnItems()
@@ -814,7 +738,8 @@ void ACH4GameMode::SpawnItems()
 
 		if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility))
 		{
-			AdjustedLocation = Hit.Location;
+			const float ItemZOffset = 30.f;
+			AdjustedLocation = Hit.Location + FVector(0.f, 0.f, ItemZOffset);
 		}
 
 		// 스폰

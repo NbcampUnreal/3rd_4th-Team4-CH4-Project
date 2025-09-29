@@ -10,7 +10,9 @@ class UCameraComponent;
 class UInputMappingContext;
 class UInputAction;
 class UBaseItem;
+class APickUp;
 struct FInputActionValue;
+
 
 UCLASS()
 class CH4PROJECT_API ACH4Character : public ACharacter
@@ -28,49 +30,25 @@ protected:
 
 	void Move(const FInputActionValue& Value);
 	void Look(const FInputActionValue& Value);
-	void Sprint(const FInputActionValue& Value);
 
-	// 아이템 사용과 관련된 가상 함수
+	// 아이템 사용 (클라이언트에서 호출)
 	UFUNCTION(BlueprintCallable)
-	virtual void UseItemInput();
+	void UseSlot1();
+	UFUNCTION(BlueprintCallable)
+	void UseSlot2();
 
 	// 서버에서 아이템 사용을 처리하는 RPC
 	UFUNCTION(Server, Reliable)
-	virtual void ServerUseItem();
+	void ServerUseItem(int32 SlotIndex);
 
-	// 실제 아이템 사용 처리
-	virtual void HandleUseItem(UBaseItem* Item);
+	// 아이템 사용 상태 초기화
+	void ResetUsingItem();
 
-public:
-	// 애니메이션 관련
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Animation")
-	bool bIsJumping;
+	// UI 업데이트 (클라이언트 RPC)
+	UFUNCTION(Client, Reliable)
+	void ClientUpdateInventoryUI();
+	void ClientUpdateInventoryUI_Implementation();
 
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Animation")
-	bool bIsRunning;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Animation")
-	float Speed;
-
-	// 아이템 사용 여부(복제)
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Animation")
-	bool bUsingItem;
-
-	// 이동 속도
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement")
-	float WalkSpeed = 300.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement")
-	float RunSpeed = 600.0f;
-
-	// 카메라
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
-	USpringArmComponent* SpringArmComp;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
-	UCameraComponent* CameraComp;
-
-protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputMappingContext* DefaultMappingContext;
 
@@ -86,12 +64,86 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputAction* JumpAction;
 
-	// 달리기
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	UInputAction* SprintAction;
-
 	// 아이템 사용
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	class UInputAction* UseItemAction;
+	class UInputAction* UseSlot1Action;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	class UInputAction* UseSlot2Action;
+
+	UPROPERTY(Replicated, ReplicatedUsing = OnRep_MaxWalkSpeed)
+	float CurrentMaxWalkSpeed;
+
+	UFUNCTION()
+	void OnRep_MaxWalkSpeed();
+
+	// 충돌 이벤트
+	UFUNCTION()
+	void OnOverlapBegin(UPrimitiveComponent* OverlappedComp,
+		AActor* OtherActor,
+		UPrimitiveComponent* OtherComp,
+		int32 OtherBodyIndex,
+		bool bFromSweep,
+		const FHitResult& SweepResult);
+
+	// UI 업데이트 블루프린트 이벤트
+	UFUNCTION(BlueprintImplementableEvent, Category = "Item|UI")
+	void UpdateHeldItemUI(UBaseItem* NewItem);
+
+	// 체포시 사망 애니메이션
+	UFUNCTION()
+	void Die();
+
+	UPROPERTY(Replicated, ReplicatedUsing = OnRep_IsDead)
+	bool bIsDead;
+
+	UFUNCTION()
+	void OnRep_IsDead();
+
+	UFUNCTION(Server, Reliable)
+	void ServerResetMovementSpeed();
+
+public:
+	// 애니메이션 관련
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Animation")
+	bool bIsJumping;
+
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Animation")
+	bool bIsRunning;
+
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Animation")
+	float Speed;
+
+	// 아이템 사용 여부(복제)
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Animation")
+	bool bUsingItem;
+
+	// 인벤토리 (2칸 고정)
+	UPROPERTY(Replicated, VisibleAnywhere, BlueprintReadOnly, Category = "Inventory")
+	TArray<UBaseItem*> Inventory;
+
+	// 현재 선택된 슬롯 (0 = 슬롯1, 1 = 슬롯2)
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Inventory")
+	int32 CurrentSlotIndex = 0;
+
+	// 이동 속도
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement")
+	float WalkSpeed = 300.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement")
+	float RunSpeed = 600.0f;
+
+	// 카메라
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
+	USpringArmComponent* SpringArmComp;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
+	UCameraComponent* CameraComp;
+
+	// 달리기 효과 지속 시간
+	UPROPERTY(EditDefaultsOnly, Category = "Movement")
+	float RunDuration = 5.0f;
+
+	// 타이머 핸들
+	FTimerHandle RunSpeedTimerHandle;
 };
