@@ -10,6 +10,7 @@ void UClockItem::UseItem_Implementation(ACH4Character* Character)
 {
     if (!Character) return;
 
+    UE_LOG (LogTemp, Warning, TEXT("Working"))
     if (AGameStateBase* GS = UGameplayStatics::GetGameState(Character))
     {
         if (ACH4GameStateBase* CH4GS = Cast<ACH4GameStateBase>(GS))
