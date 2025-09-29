@@ -71,12 +71,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	class UInputAction* UseSlot2Action;
 
-	UPROPERTY(Replicated, ReplicatedUsing = OnRep_MaxWalkSpeed)
-	float CurrentMaxWalkSpeed;
-
-	UFUNCTION()
-	void OnRep_MaxWalkSpeed();
-
 	// 충돌 이벤트
 	UFUNCTION()
 	void OnOverlapBegin(UPrimitiveComponent* OverlappedComp,
@@ -100,8 +94,35 @@ protected:
 	UFUNCTION()
 	void OnRep_IsDead();
 
-	UFUNCTION(Server, Reliable)
-	void ServerResetMovementSpeed();
+	// 애니메이션 인스턴스에서 사용할 기절 상태
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Animation")
+	bool bIsStunned = false;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	class UAnimMontage* StunMontage;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* CH4_Falling_Down_Montage;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* DieMontage;
+
+	// 애니메이션이 재생되도록 지시
+	UFUNCTION()
+	void PlayStunAnimation();
+
+	UFUNCTION()
+	void RemoveCharacterAfterDeath();
+
+	// 애니메이션이 끝났을 때 호출
+	void ResetStunState();
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* CH4_Die_Montage;
+
+	FTimerHandle DestroyTimerHandle;
+
+
 
 public:
 	// 애니메이션 관련
@@ -126,12 +147,28 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Inventory")
 	int32 CurrentSlotIndex = 0;
 
+	// 서버에서만 호출, MaxWalkSpeed를 변경 및 클라이언트에게 복제
+	UFUNCTION(BlueprintCallable, Category = "Movement")
+	void SetCharacterMaxWalkSpeed(float NewMaxWalkSpeed);
+
 	// 이동 속도
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement")
 	float WalkSpeed = 300.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement")
 	float RunSpeed = 600.0f;
+
+	UPROPERTY(Replicated, ReplicatedUsing = OnRep_MaxWalkSpeed)
+	float CurrentMaxWalkSpeed;
+
+	UFUNCTION()
+	void OnRep_MaxWalkSpeed();
+
+	UFUNCTION(Server, Reliable)
+	void ServerResetMovementSpeed();
+
+	UFUNCTION(BlueprintCallable, Server, Reliable)
+	void ServerPlayStunAnimation();
 
 	// 카메라
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
@@ -140,10 +177,18 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	UCameraComponent* CameraComp;
 
-	// 달리기 효과 지속 시간
-	UPROPERTY(EditDefaultsOnly, Category = "Movement")
-	float RunDuration = 5.0f;
-
 	// 타이머 핸들
 	FTimerHandle RunSpeedTimerHandle;
+
+	UFUNCTION(BlueprintCallable, Category = "Gameplay")
+	void CaughtByPolice();
+
+	void MulticastPlayDeathAnimation_Implementation();
+
+	UFUNCTION(Server, Reliable)
+	void ServerHandleDeath();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayDeathAnimation();
+
 };
