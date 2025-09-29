@@ -19,7 +19,22 @@ void APickUp::BeginPlay()
 
 	OnActorBeginOverlap.AddDynamic(this, &APickUp::OnOverlap);
 	
-	StartLocation = GetActorLocation();
+	FHitResult Hit;
+	FVector Start = GetActorLocation();
+	FVector End = Start - FVector(0.f, 0.f, 500.f); // 아래로 500 유닛
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(this);
+
+	if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params))
+	{
+		StartLocation = Hit.ImpactPoint + FVector(0.f, 0.f, 50.f); // 바닥 위 50 유닛
+	}
+	else
+	{
+		StartLocation = Start;
+	}
+
+	SetActorLocation(StartLocation);
 	RunningTime = 0.f;
 }
 
@@ -33,7 +48,7 @@ void APickUp::Tick(float DeltaSeconds)
 
 	// 위아래 이동
 	RunningTime += DeltaSeconds;
-	float OffsetZ = FMath::Sin(RunningTime * BobSpeed) * BobHeight;
+	float OffsetZ = (FMath::Sin(RunningTime * BobSpeed) + 1.f) * 0.5f * BobHeight;
 
 	FVector NewLocation = StartLocation;
 	NewLocation.Z += OffsetZ;
@@ -49,7 +64,6 @@ void APickUp::OnOverlap(AActor* OverlapActor, AActor* OtherActor)
 		if (ItemClass)
 		{
 			UBaseItem* NewItem = NewObject<UBaseItem>(Character, ItemClass);
-			//Character->AddToInventory(NewItem);
 			Destroy();
 		}
 	}
