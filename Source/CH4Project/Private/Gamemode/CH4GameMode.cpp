@@ -71,7 +71,8 @@ void ACH4GameMode::PostLogin(APlayerController* NewPlayer)
 
 	if (HasAuthority())
 	{
-		StartItemSpawnTimer();
+		FTimerHandle ItemTimerHandle;
+		GetWorldTimerManager().SetTimer(ItemTimerHandle, this, &ACH4GameMode::StartItemSpawnTimer, 10.0f, false);
 	}
 }
 
@@ -817,18 +818,15 @@ void ACH4GameMode::SpawnItems()
 void ACH4GameMode::StartItemSpawnTimer()
 {
 	if (!HasAuthority()) return; // 서버 전용
+	
 
-	// 타이머 설정
-	GetWorldTimerManager().SetTimer(
-		ItemSpawnTimerHandle,
-		this,
-		&ACH4GameMode::SpawnItems,
-		ItemSpawnInterval,
-		true // 반복
-	);
+	if (ACH4GameStateBase* GS = GetGameState<ACH4GameStateBase>())
+	{
+		SpawnItems(); // 즉시 스폰
+		// 반복 타이머
+		GetWorldTimerManager().SetTimer(ItemSpawnTimerHandle, this, &ACH4GameMode::SpawnItems, ItemSpawnInterval, true);
+	}
 
-	// 처음 게임 시작 시 한 번 스폰
-	SpawnItems();
 }
 
 void ACH4GameMode::ClearItems()
