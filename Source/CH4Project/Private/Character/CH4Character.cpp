@@ -14,6 +14,7 @@
 #include "IngameUI/CH4UserWidget.h"
 #include "Item/BaseItem.h"
 #include "Item/PickUp.h"
+#include "Item/ClockItem.h"
 
 ACH4Character::ACH4Character()
 {
@@ -172,7 +173,45 @@ void ACH4Character::OnRep_MaxWalkSpeed()
 	GetCharacterMovement()->MaxWalkSpeed = CurrentMaxWalkSpeed;
 	UE_LOG(LogTemp, Warning, TEXT("Client/Server: MaxWalkSpeed updated to %f"), CurrentMaxWalkSpeed);
 
+	if (!HasAuthority()) // 클라이언트에서만 실행
+	{
+		// 클라이언트의 MaxWalkSpeed가 기본 걷기 속도보다 높으면 달리기
+		bIsRunning = (GetCharacterMovement()->MaxWalkSpeed > WalkSpeed + 10.0f);
+	}
+
 	bIsRunning = (GetCharacterMovement()->MaxWalkSpeed > WalkSpeed + 10.0f);
+}
+
+void ACH4Character::ServerHandleDeath_Implementation()
+{
+}
+
+void ACH4Character::MulticastPlayDeathAnimation_Implementation()
+{
+
+	if (UAnimInstance* AnimInst = GetMesh()->GetAnimInstance())
+	{
+		if (CH4_Die_Montage)
+		{
+			float MontageDuration = AnimInst->Montage_Play(CH4_Die_Montage);
+
+			GetWorldTimerManager().SetTimer(
+				DestroyTimerHandle,
+				this,
+				&ACH4Character::RemoveCharacterAfterDeath,
+				MontageDuration, // 애니메이션 재생 시간
+				false
+			);
+		}
+		else
+		{
+			RemoveCharacterAfterDeath(); // 몽타주가 없으면 바로 삭제
+		}
+	}
+	else
+	{
+		RemoveCharacterAfterDeath();
+	}
 }
 
 // 충돌 이벤트

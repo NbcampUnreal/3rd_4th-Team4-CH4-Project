@@ -180,4 +180,10 @@ public:
 	// 타이머 핸들
 	FTimerHandle RunSpeedTimerHandle;
 
+	UFUNCTION(Server, Reliable)
+	void ServerHandleDeath();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayDeathAnimation();
+
 };
