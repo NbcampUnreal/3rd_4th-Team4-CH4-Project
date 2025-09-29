@@ -83,10 +83,10 @@ void ACH4Character::Tick(float DeltaTime)
 		bIsJumping = GetCharacterMovement()->IsFalling();
 	}
 
-	if (HasAuthority()) // 서버에서만 실행
-	{
-		bIsRunning = (GetVelocity().Size() > WalkSpeed + 10.0f);
-	}
+	//if (HasAuthority()) // 서버에서만 실행
+	//{
+	//	bIsRunning = (GetVelocity().Size() > WalkSpeed + 10.0f);
+	//}
 
 	// 애니메이션 인스턴스에 복제된 변수 및 로컬 변수 전달
 	if (UCH4AnimInstance* AnimInst = Cast<UCH4AnimInstance>(GetMesh()->GetAnimInstance()))
@@ -148,7 +148,7 @@ void ACH4Character::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLif
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME_CONDITION(ACH4Character, bIsJumping, COND_SkipOwner);
-	DOREPLIFETIME_CONDITION(ACH4Character, bIsRunning, COND_SkipOwner);
+	DOREPLIFETIME(ACH4Character, bIsRunning);
 	DOREPLIFETIME(ACH4Character, Inventory);
 	DOREPLIFETIME(ACH4Character, CurrentMaxWalkSpeed);
 	DOREPLIFETIME(ACH4Character, Speed);
@@ -172,57 +172,7 @@ void ACH4Character::OnRep_MaxWalkSpeed()
 	GetCharacterMovement()->MaxWalkSpeed = CurrentMaxWalkSpeed;
 	UE_LOG(LogTemp, Warning, TEXT("Client/Server: MaxWalkSpeed updated to %f"), CurrentMaxWalkSpeed);
 
-
-	if (!HasAuthority()) // 클라이언트에서만 실행
-	{
-		// 클라이언트의 MaxWalkSpeed가 기본 걷기 속도보다 높으면 달리기
-		bIsRunning = (GetCharacterMovement()->MaxWalkSpeed > WalkSpeed + 10.0f);
-	}
-}
-
-void ACH4Character::CaughtByPolice()
-{
-	if (HasAuthority())
-	{
-		ServerHandleDeath();
-	}
-	else
-	{
-		ServerHandleDeath();
-	}
-}
-
-void ACH4Character::MulticastPlayDeathAnimation_Implementation()
-{
-
-	if (UAnimInstance* AnimInst = GetMesh()->GetAnimInstance())
-	{
-		if (CH4_Die_Montage)
-		{
-			float MontageDuration = AnimInst->Montage_Play(CH4_Die_Montage);
-
-			GetWorldTimerManager().SetTimer(
-				DestroyTimerHandle,
-				this,
-				&ACH4Character::RemoveCharacterAfterDeath,
-				MontageDuration, // 애니메이션 재생 시간
-				false
-			);
-		}
-		else
-		{
-			RemoveCharacterAfterDeath(); // 몽타주가 없으면 바로 삭제
-		}
-	}
-	else
-	{
-		RemoveCharacterAfterDeath();
-	}
-}
-
-void ACH4Character::ServerHandleDeath_Implementation()
-{
-	MulticastPlayDeathAnimation();
+	bIsRunning = (GetCharacterMovement()->MaxWalkSpeed > WalkSpeed + 10.0f);
 }
 
 // 충돌 이벤트
@@ -265,6 +215,18 @@ void ACH4Character::OnOverlapBegin(UPrimitiveComponent* OverlappedComp,
 			UBaseItem* NewItem = NewObject<UBaseItem>(this, PickUpActor->ItemClass);
 			if (NewItem)
 			{
+				if (UClockItem* Clock = Cast<UClockItem>(NewItem))
+				{
+					// PickUp 먼저 제거
+					PickUpActor->Destroy();
+
+					// 즉시 사용
+					Clock->UseItem(this);
+
+					// UObject 제거
+					NewItem->ConditionalBeginDestroy();
+				}
+
 				// 인벤토리에 아이템 추가
 				for (int32 i = 0; i < Inventory.Num(); i++)
 				{
@@ -302,7 +264,7 @@ void ACH4Character::ClientUpdateInventoryUI_Implementation()
 			if (MyPC->MyHUDWidget)
 			{
 				// 빌드 오류때문에 주석 처리
-				//MyPC->MyHUDWidget->UpdateInventoryUI(Inventory);
+				MyPC->MyHUDWidget->UpdateInventoryUI(Inventory);
 			}
 		}
 	}
@@ -361,8 +323,8 @@ void ACH4Character::ServerResetMovementSpeed_Implementation()
 	CurrentMaxWalkSpeed = WalkSpeed;
 	OnRep_MaxWalkSpeed(); // 클라이언트에도 변경된 속도 동기화
 
-	// 애니메이션 상태를 업데이트하기 위해 bIsRunning 변수를 false로 설정
-	bIsRunning = false;
+	//// 애니메이션 상태를 업데이트하기 위해 bIsRunning 변수를 false로 설정
+	//bIsRunning = false;
 
 	UE_LOG(LogTemp, Warning, TEXT("Server: Speed reset to WalkSpeed"));
 }

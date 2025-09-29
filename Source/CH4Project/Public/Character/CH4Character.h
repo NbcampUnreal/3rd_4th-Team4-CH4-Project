@@ -180,15 +180,4 @@ public:
 	// 타이머 핸들
 	FTimerHandle RunSpeedTimerHandle;
 
-	UFUNCTION(BlueprintCallable, Category = "Gameplay")
-	void CaughtByPolice();
-
-	void MulticastPlayDeathAnimation_Implementation();
-
-	UFUNCTION(Server, Reliable)
-	void ServerHandleDeath();
-
-	UFUNCTION(NetMulticast, Reliable)
-	void MulticastPlayDeathAnimation();
-
 };
