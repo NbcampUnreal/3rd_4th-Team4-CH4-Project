@@ -43,6 +43,14 @@ public:
 	UFUNCTION(Client, Reliable)
 	void RefreshPlayerList();
 
+	// 이름 복제 리스트 콜백
+	UFUNCTION()
+	void HandleAnyPlayerNameUpdated();
+	
+	// 준비 UI 반영
+	UFUNCTION()
+	void HandleAnyReadyChanged(bool bNewReady);
+
 	// 로비 마우스 커서 분별
 	UFUNCTION(Client, Reliable)
 	void SetLobbyInput();
@@ -55,6 +63,10 @@ public:
 	// bIsWin == true, false
 	UFUNCTION(Client, Reliable)
 	void ShowResultScreen(bool bIsWin);
+
+	// 로비 복귀를 서버에 요청 (클라→서버)
+	UFUNCTION(Server, Reliable)
+	void Server_RequestReturnLobby();
 
 	// 로비로 돌아가기
 	UFUNCTION(BlueprintCallable)

@@ -3,6 +3,7 @@
 #include "PlayerController/CH4ChatPlayerController.h"
 #include "PlayerState/CH4ChatPlayerState.h"
 #include "Kismet/GameplayStatics.h"
+#include "GameInstance/CH4GameInstance.h"
 
 // 게임 모드 할당 시 기본적으로 탑재되는 클래스
 ACH4ChatGameMode::ACH4ChatGameMode()
@@ -63,12 +64,19 @@ void ACH4ChatGameMode::PostLogin(APlayerController* NewPlayer)
     Super::PostLogin(NewPlayer);
 
     FString PlayerName = TEXT("Unknown");
+
     if (NewPlayer && NewPlayer->PlayerState)
     {
-        PlayerName = NewPlayer->PlayerState->GetPlayerName();
-    }
+        APlayerState* PS = NewPlayer->PlayerState;
 
-    UE_LOG(LogTemp, Log, TEXT("[Server] %s has joined the game"), *PlayerName);
+        int32 PlayerIndex = GameState.Get() ? GameState->PlayerArray.Num() : 0;
+
+        FString NewName = FString::Printf(TEXT("Player_%d"), PlayerIndex);
+        PS->SetPlayerName(NewName);
+
+        PlayerName = PS->GetPlayerName();
+        UE_LOG(LogTemp, Log, TEXT("[Server] %s has joined the game"), *PlayerName);
+    }
 
     int32 Total = 0, Ready = 0;
     if (UWorld* World = GetWorld())
@@ -96,6 +104,7 @@ void ACH4ChatGameMode::PostLogin(APlayerController* NewPlayer)
 
 void ACH4ChatGameMode::Logout(AController* Exiting)
 {
+    // 나가기 전 정보 로깅
     FString PlayerName = TEXT("Unknown");
     bool bWasReady = false;
     if (Exiting && Exiting->PlayerState)
@@ -106,23 +115,23 @@ void ACH4ChatGameMode::Logout(AController* Exiting)
             bWasReady = MyPS->IsReady();
         }
     }
-
     UE_LOG(LogTemp, Log, TEXT("[Server] %s has left the game (Ready=%s)"),
         *PlayerName, bWasReady ? TEXT("true") : TEXT("false"));
 
     Super::Logout(Exiting);
 
-    int32 Total = -1, Ready = 0;
-    if (UWorld* World = GetWorld())
-    {
-        for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
-        {
-            APlayerController* PC = It->Get();
-            if (!PC) continue;
+    // 제거 반영된 GameState 기준으로 현재 인원, Ready 집계
+    int32 Total = -1;
+    int32 Ready = 0;
 
-            if (ACH4ChatPlayerState* P = Cast<ACH4ChatPlayerState>(PC->PlayerState))
+    if (AGameStateBase* GSBase = GetGameState<AGameStateBase>())
+    {
+        Total = GSBase->PlayerArray.Num();
+
+        for (APlayerState* PS : GSBase->PlayerArray)
+        {
+            if (const ACH4ChatPlayerState* P = Cast<ACH4ChatPlayerState>(PS))
             {
-                ++Total;
                 if (P->IsReady()) ++Ready;
             }
         }
@@ -153,5 +162,44 @@ void ACH4ChatGameMode::StartGame()
 
         // 맵 이동
         World->ServerTravel(TEXT("InGameMap_Prototype"));
+    }
+}
+
+void ACH4ChatGameMode::EndMatchAndShowResult()
+{
+    if (!HasAuthority()) return;
+
+    UWorld* World = GetWorld();
+    if (!World) return;
+
+    UCH4GameInstance* GI = GetGameInstance<UCH4GameInstance>();
+    const EWinTeam WinTeam = GI ? GI->FinalWinner : EWinTeam::None;
+
+    for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
+    {
+        ACH4ChatPlayerController* PC = Cast<ACH4ChatPlayerController>(It->Get());
+        if (!PC) continue;
+
+        APlayerState* PS = PC->PlayerState;
+        bool bIsWin = false;
+
+        if (GI && PS && WinTeam != EWinTeam::None)
+        {
+            const FString Key = PS->GetPlayerName();
+
+            if (const EPlayerRole* FoundRole = GI->LastRoles.Find(Key))
+            {
+                EWinTeam MyTeam = EWinTeam::None;
+                switch (*FoundRole)
+                {
+                case EPlayerRole::Police: MyTeam = EWinTeam::Police; break;
+                case EPlayerRole::Thief:  MyTeam = EWinTeam::Thief;  break;
+                default:                  MyTeam = EWinTeam::None;   break;
+                }
+
+                bIsWin = (MyTeam == WinTeam);
+            }
+        }
+        PC->ShowResultScreen(bIsWin);
     }
 }

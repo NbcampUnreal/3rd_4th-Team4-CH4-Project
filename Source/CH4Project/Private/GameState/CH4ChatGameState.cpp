@@ -12,3 +12,15 @@ void ACH4ChatGameState::MulticastRefreshPlayerList_Implementation()
         }
     }
 }
+
+void ACH4ChatGameState::AddPlayerState(APlayerState* PlayerState)
+{
+    Super::AddPlayerState(PlayerState);
+    MulticastRefreshPlayerList();
+}
+
+void ACH4ChatGameState::RemovePlayerState(APlayerState* PlayerState)
+{
+    Super::RemovePlayerState(PlayerState);
+    MulticastRefreshPlayerList();
+}
