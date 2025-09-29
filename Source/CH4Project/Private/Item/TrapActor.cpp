@@ -39,6 +39,8 @@ void ATrapActor::OnOverlap(AActor* OverlappedActor, AActor* OtherActor)
 			return;
 		}
 		
+		HitCharacter->ServerPlayStunAnimation();
+		
 		if (UCharacterMovementComponent* MoveComp = HitCharacter->GetCharacterMovement())
 		{
 			MoveComp->DisableMovement();
