@@ -21,6 +21,9 @@ public:
     UPROPERTY(BlueprintReadWrite, Category = "Animation")
     float Speed;
 
+    UPROPERTY(BlueprintReadWrite, Category = "Animation")
+    bool bIsStunned = false;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
     UAnimMontage* DeathMontage;
 

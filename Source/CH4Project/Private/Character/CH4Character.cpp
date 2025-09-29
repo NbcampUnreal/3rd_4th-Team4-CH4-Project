@@ -34,7 +34,7 @@ ACH4Character::ACH4Character()
 	bUsingItem = false;
 
 	// 인벤토리 크기 2로 설정 (슬롯 2칸)
-	Inventory.SetNum(2); 
+	Inventory.SetNum(2);
 
 	// 카메라 컴포넌트 생성 및 연결
 	SpringArmComp = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
@@ -95,6 +95,7 @@ void ACH4Character::Tick(float DeltaTime)
 		AnimInst->bIsRunning = bIsRunning;
 		AnimInst->Speed = Speed;
 		AnimInst->bUsingItem = bUsingItem;
+		AnimInst->bIsStunned = bIsStunned;
 	}
 }
 
@@ -152,11 +153,76 @@ void ACH4Character::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLif
 	DOREPLIFETIME(ACH4Character, CurrentMaxWalkSpeed);
 	DOREPLIFETIME(ACH4Character, Speed);
 	DOREPLIFETIME(ACH4Character, bIsDead);
+	DOREPLIFETIME(ACH4Character, bIsStunned);
+}
+
+void ACH4Character::SetCharacterMaxWalkSpeed(float NewMaxWalkSpeed)
+{
+	// 서버에서만 실행
+	if (!HasAuthority()) return;
+
+	// 복제 변수를 변경 (클라이언트에게 전달됨)
+	CurrentMaxWalkSpeed = NewMaxWalkSpeed;
+
+	OnRep_MaxWalkSpeed();
 }
 
 void ACH4Character::OnRep_MaxWalkSpeed()
 {
-	GetCharacterMovement()->MaxWalkSpeed = CurrentMaxWalkSpeed;	
+	GetCharacterMovement()->MaxWalkSpeed = CurrentMaxWalkSpeed;
+	UE_LOG(LogTemp, Warning, TEXT("Client/Server: MaxWalkSpeed updated to %f"), CurrentMaxWalkSpeed);
+
+
+	if (!HasAuthority()) // 클라이언트에서만 실행
+	{
+		// 클라이언트의 MaxWalkSpeed가 기본 걷기 속도보다 높으면 달리기
+		bIsRunning = (GetCharacterMovement()->MaxWalkSpeed > WalkSpeed + 10.0f);
+	}
+}
+
+void ACH4Character::CaughtByPolice()
+{
+	if (HasAuthority())
+	{
+		ServerHandleDeath();
+	}
+	else
+	{
+		ServerHandleDeath();
+	}
+}
+
+void ACH4Character::MulticastPlayDeathAnimation_Implementation()
+{
+
+	if (UAnimInstance* AnimInst = GetMesh()->GetAnimInstance())
+	{
+		if (CH4_Die_Montage)
+		{
+			float MontageDuration = AnimInst->Montage_Play(CH4_Die_Montage);
+
+			GetWorldTimerManager().SetTimer(
+				DestroyTimerHandle,
+				this,
+				&ACH4Character::RemoveCharacterAfterDeath,
+				MontageDuration, // 애니메이션 재생 시간
+				false
+			);
+		}
+		else
+		{
+			RemoveCharacterAfterDeath(); // 몽타주가 없으면 바로 삭제
+		}
+	}
+	else
+	{
+		RemoveCharacterAfterDeath();
+	}
+}
+
+void ACH4Character::ServerHandleDeath_Implementation()
+{
+	MulticastPlayDeathAnimation();
 }
 
 // 충돌 이벤트
@@ -175,6 +241,13 @@ void ACH4Character::OnOverlapBegin(UPrimitiveComponent* OverlappedComp,
 
 	if (!OtherActor)
 	{
+		return;
+	}
+
+	if (OtherActor->ActorHasTag("Trap")) // 태그 추가 요청
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Hit a trap Character stunned."));
+		ServerPlayStunAnimation(); // 서버에서 기절 애니메이션 재생
 		return;
 	}
 
@@ -310,6 +383,7 @@ void ACH4Character::Die()
 	if (HasAuthority())
 	{
 		bIsDead = true;
+		OnRep_IsDead();
 	}
 }
 
@@ -319,11 +393,61 @@ void ACH4Character::OnRep_IsDead()
 	{
 		// 입력 막기
 		DisableInput(Cast<APlayerController>(GetController()));
+	}
+}
 
-		// 애니메이션 재생
-		if (UCH4AnimInstance* AnimInst = Cast<UCH4AnimInstance>(GetMesh()->GetAnimInstance()))
+void ACH4Character::RemoveCharacterAfterDeath()
+{
+	if (HasAuthority())
+	{
+		Destroy();
+		UE_LOG(LogTemp, Warning, TEXT("%s: Character destroyed after death"), *GetName());
+	}
+}
+
+void ACH4Character::ServerPlayStunAnimation_Implementation()
+{
+	if (bIsStunned) return;
+
+	bIsStunned = true;
+	PlayStunAnimation(); // 서버 자신에게 애니메이션 재생 시작
+
+	// 애니메이션이 끝나면 상태를 원래대로 돌릴 타이머를 설정
+	const float StunAnimDuration = 2.8f;
+	GetWorldTimerManager().SetTimer(
+		RunSpeedTimerHandle,
+		this,
+		&ACH4Character::ResetStunState,
+		StunAnimDuration,
+		false
+	);
+}
+
+void ACH4Character::PlayStunAnimation()
+{
+	if (UCH4AnimInstance* AnimInst = Cast<UCH4AnimInstance>(GetMesh()->GetAnimInstance()))
+	{
+		if (CH4_Falling_Down_Montage)
 		{
-			AnimInst->PlayDeadAnimation();
+			AnimInst->Montage_Play(CH4_Falling_Down_Montage);
+			UE_LOG(LogTemp, Warning, TEXT("%s: Play CH4_Falling_Down_Montage"), *GetName());
+		}
+		else if (StunMontage)
+		{
+			AnimInst->Montage_Play(StunMontage);
+			UE_LOG(LogTemp, Warning, TEXT("%s: Play Stun Montage"), *GetName());
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("StunMontage is NULL on %s"), *GetName());
 		}
 	}
+}
+
+void ACH4Character::ResetStunState()
+{
+	if (!HasAuthority()) return;
+
+	bIsStunned = false; // 복제
+	UE_LOG(LogTemp, Warning, TEXT("Server: Reset Stun State"));
 }
