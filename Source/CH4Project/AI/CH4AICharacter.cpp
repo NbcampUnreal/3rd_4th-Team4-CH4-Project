@@ -19,7 +19,7 @@ ACH4AICharacter::ACH4AICharacter()
 	UCharacterMovementComponent* Movement = GetCharacterMovement();
 	bUseControllerRotationYaw = false;
 	Movement->bUseControllerDesiredRotation = false;
-	Movement->MaxWalkSpeed = 300.0f;
+	Movement->MaxWalkSpeed = 500.0f;
 	Movement->bOrientRotationToMovement = true;
 	Movement->RotationRate = FRotator(0.0f, 540.0f, 0.0f);
 

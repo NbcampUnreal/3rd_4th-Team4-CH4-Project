@@ -12,6 +12,13 @@ class CH4PROJECT_API UBaseItem : public UObject
     GENERATED_BODY()
 
 public:
+    virtual bool IsSupportedForNetworking() const override
+    {
+        return true;
+    }
+    
+    virtual UWorld* GetWorld() const override;
+    
     UFUNCTION(BlueprintNativeEvent, Category = "Item")
     void UseItem(ACH4Character* Character);
     virtual void UseItem_Implementation(ACH4Character* Character);
