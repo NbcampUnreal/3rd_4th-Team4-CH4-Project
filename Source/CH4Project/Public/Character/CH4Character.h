@@ -102,9 +102,6 @@ protected:
 	class UAnimMontage* StunMontage;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Animation")
-	UAnimMontage* CH4_Falling_Down_Montage;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Animation")
 	UAnimMontage* DieMontage;
 
 	// 애니메이션이 재생되도록 지시
@@ -116,9 +113,6 @@ protected:
 
 	// 애니메이션이 끝났을 때 호출
 	void ResetStunState();
-
-	UPROPERTY(EditDefaultsOnly, Category = "Animation")
-	UAnimMontage* CH4_Die_Montage;
 
 	FTimerHandle DestroyTimerHandle;
 
@@ -153,7 +147,7 @@ public:
 
 	// 이동 속도
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement")
-	float WalkSpeed = 300.0f;
+	float WalkSpeed = 500.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement")
 	float RunSpeed = 600.0f;
