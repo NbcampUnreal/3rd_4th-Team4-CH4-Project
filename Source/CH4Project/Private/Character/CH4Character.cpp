@@ -191,9 +191,9 @@ void ACH4Character::MulticastPlayDeathAnimation_Implementation()
 
 	if (UAnimInstance* AnimInst = GetMesh()->GetAnimInstance())
 	{
-		if (CH4_Die_Montage)
+		if (DieMontage)
 		{
-			float MontageDuration = AnimInst->Montage_Play(CH4_Die_Montage);
+			float MontageDuration = AnimInst->Montage_Play(DieMontage);
 
 			GetWorldTimerManager().SetTimer(
 				DestroyTimerHandle,
@@ -428,12 +428,7 @@ void ACH4Character::PlayStunAnimation()
 {
 	if (UCH4AnimInstance* AnimInst = Cast<UCH4AnimInstance>(GetMesh()->GetAnimInstance()))
 	{
-		if (CH4_Falling_Down_Montage)
-		{
-			AnimInst->Montage_Play(CH4_Falling_Down_Montage);
-			UE_LOG(LogTemp, Warning, TEXT("%s: Play CH4_Falling_Down_Montage"), *GetName());
-		}
-		else if (StunMontage)
+		if (StunMontage)
 		{
 			AnimInst->Montage_Play(StunMontage);
 			UE_LOG(LogTemp, Warning, TEXT("%s: Play Stun Montage"), *GetName());
