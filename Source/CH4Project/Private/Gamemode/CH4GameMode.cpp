@@ -18,6 +18,7 @@
 #include "GameInstance/CH4GameInstance.h"
 #include "SpawnVolume/ItemSpawnVolume.h"
 #include "Character/CH4Character.h"
+#include "PlayerController/CH4PlayerController.h"
 
 ACH4GameMode::ACH4GameMode()
 {
@@ -196,23 +197,24 @@ void ACH4GameMode::CheckWinCondition() //승리 조건 체크 로직으로 추�
 	UCH4GameInstance* GI = GetGameInstance<UCH4GameInstance>();
 	
 	
-	if (!GS) return;
+	if (!GS || !GI) return;
 
+	bool bGameOver = false;
+	
 	if (GS->RemainingThieves <= 0) //경찰 승리조건
 	{
 		//게임 인스턴스에 게임모드, 즉 서버가 직접 개입하면 문제 발생 이 파트를 게임 스테이트에서 저장용으로 지정한 후, 게임스테이트의 함수를 불러오는 방식으로 구현해야함.
 		GI -> FinalWinner = EWinTeam::Police;
 		SetMatchState(EMatchTypes::GameOver);
 		HandleGameOver();
-		RestartGame();
-		
+		bGameOver = true;
 	}
 	if (GS->MatchTime <= 0.f)
 	{
 		GI -> FinalWinner = EWinTeam::Thief;
 		SetMatchState(EMatchTypes::GameOver);
 		HandleGameOver();
-		RestartGame();
+		bGameOver = true;
 		
 	}
 	else if (GS->RemainingPolice <= 0 )
@@ -220,7 +222,8 @@ void ACH4GameMode::CheckWinCondition() //승리 조건 체크 로직으로 추�
 		GI -> FinalWinner = EWinTeam::Thief;
 		SetMatchState(EMatchTypes::GameOver);
 		HandleGameOver();
-		RestartGame();
+		bGameOverHandled = true;
+
 	}
 }
 
@@ -229,8 +232,11 @@ void ACH4GameMode::HandleGameOver()
 	GetWorldTimerManager().ClearTimer(MatchTimerHandle);
 
 	ACH4GameStateBase* GS = GetGameState<ACH4GameStateBase>();
+	UCH4GameInstance* GI = GetGameInstance<UCH4GameInstance>();
 	
-	if (UCH4GameInstance* GI = GetGameInstance<UCH4GameInstance>())
+	TArray<FPlayerRoleData> RoleArray;
+
+	if (GI)
 	{
 		UE_LOG(LogTemp, Log, TEXT("[HandleGameOver] GameInstance 확인 완료"));
 		
@@ -239,20 +245,30 @@ void ACH4GameMode::HandleGameOver()
 
 		GI->LastRoles.Empty();
 		UE_LOG(LogTemp, Log, TEXT("[HandleGameOver] LastRoles 초기화"));
-
+		
 		for (APlayerState* PS : GS->PlayerArray)
 		{
 			if (ACH4PlayerState* MyPS = Cast<ACH4PlayerState>(PS))
 			{
-				FString PlayerIdStr = MyPS->GetPlayerName();
-				//추후 플레이어 스테이트에 닉네임 과정이 추가되서 저장된다면 해당 닉네임이 추가되지만, 여기선 역할 저장용이기 때문에 굳이 중요하진 않음
-				GI->LastRoles.Add(PlayerIdStr, MyPS->GetPlayerRole());
-				UE_LOG(LogTemp, Log, TEXT("게임 인스턴스에 ID 별로 역할군 저장 완료"));
-
+				FPlayerRoleData Data;
+				Data.PlayerName = MyPS->GetPlayerName();
+				Data.Role = MyPS->GetPlayerRole();
+				RoleArray.Add(Data);
 			}
 		}
 	}
-	
+
+	//게임 인스턴스에 값을 클라이언트에 업데이트 하는 로직 추가
+	for (APlayerState* PS : GS->PlayerArray)
+	{
+		if (APlayerController* PC = Cast<APlayerController>(PS->GetOwner()))
+		{
+			if (ACH4PlayerController* MyPC = Cast<ACH4PlayerController>(PC))
+			{
+				MyPC->Client_UpdateMatchData(GI->FinalWinner, RoleArray);
+			}
+		}
+	}
 
 	// AI 캐릭터 및 플레이어 캐릭터 삭제용 로직
 	TArray<APawn*> PawnsToDestroy;
@@ -292,29 +308,13 @@ void ACH4GameMode::HandleGameOver()
 		}
 	}
 
-	/* 결과창이 레벨 게임모드에서 관리하게 되면 수정해야할 소요가 있음.
-	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
-	{
-		ACH4PlayerController* MyPC = Cast<ACH4PlayerController>(It->Get());
-		if (MyPC && MyPC->MyHUDWidget)
-		{
-			if (MyPC->MyHUDWidget->IsInViewport())
-			{
-				MyPC->MyHUDWidget->RemoveFromParent();
-			}
-			MyPC->MyHUDWidget = nullptr;
-		}
-
-		//아이템 스폰 타이머 클리어로 추가 아이템 스폰 중지.
-		GetWorldTimerManager().ClearTimer(ItemSpawnTimerHandle);
-
-	}
-	*/
-
+	
+	
 	//게임 모드 내 모든 타이머 초기화
 	GetWorldTimerManager().ClearAllTimersForObject(this);
 	ClearItems();
 	UE_LOG(LogTemp, Warning, TEXT("게임 오버 처리 완료"));
+	RestartGame();
 
 	//이 파트에서 약간의 딜레이 있음. UnPossess 후 Destroy될 때, 레벨 화면이 잠시 출력되며 그 상황에서 출력할 내부 UI가 추가로 필요할 수 있음.
 	if (UWorld* World = GetWorld())
