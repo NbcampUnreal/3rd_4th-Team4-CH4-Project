@@ -2,6 +2,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "Blueprint/UserWidget.h"
 #include "IngameUI/CH4UserWidget.h"
+#include "GameInstance/CH4GameInstance.h"
 
 ACH4PlayerController::ACH4PlayerController()
 	: InputMappingContext(nullptr),
@@ -39,5 +40,21 @@ void ACH4PlayerController::BeginPlay()
 			HUDWidget->AddToViewport();
 			MyHUDWidget = HUDWidget;
 		}
+	}
+}
+
+void ACH4PlayerController::Client_UpdateMatchData_Implementation(EWinTeam Winner, const TArray<FPlayerRoleData>& Roles)
+{
+	if (UCH4GameInstance* GI = GetGameInstance<UCH4GameInstance>())
+	{
+		GI->FinalWinner = Winner;
+		GI->LastRoles.Empty();
+
+		for (const FPlayerRoleData& Data : Roles)
+		{
+			GI->LastRoles.Add(Data.PlayerName, Data.Role);
+		}
+
+		GI->LastMatchState = EMatchTypes::GameOver;
 	}
 }
