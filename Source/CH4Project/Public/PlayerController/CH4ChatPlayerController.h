@@ -16,7 +16,7 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
-
+	virtual void Tick(float DeltaSeconds) override;
 
 public:
 	// 로비 화면
@@ -75,4 +75,8 @@ public:
 	// 개인 클라이언트 게임 종료
 	UFUNCTION(BlueprintCallable, Category = "Game")
 	void ExitGame();
+
+private:
+	bool bPrevMatchEnded = false;
+	bool bCachedResult = false;
 };
