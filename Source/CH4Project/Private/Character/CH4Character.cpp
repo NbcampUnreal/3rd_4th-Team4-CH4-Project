@@ -290,6 +290,8 @@ void ACH4Character::OnOverlapBegin(UPrimitiveComponent* OverlappedComp,
 
 					// UObject 제거
 					NewItem->ConditionalBeginDestroy();
+
+					return;
 				}
 
 				// 인벤토리에 아이템 추가
