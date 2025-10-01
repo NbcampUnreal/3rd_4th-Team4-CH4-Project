@@ -7,6 +7,18 @@
 #include "Type/MatchTypes.h"
 #include "CH4GameInstance.generated.h"
 
+USTRUCT(BlueprintType)
+struct FPlayerRoleData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite)
+	EPlayerRole Role = EPlayerRole::Unassigned;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FString PlayerName = TEXT("");
+};
+
 /**
  * 
  */
@@ -14,8 +26,10 @@ UCLASS()
 class CH4PROJECT_API UCH4GameInstance : public UGameInstance
 {
 	GENERATED_BODY()
-
+//현재 서버에서의 변경 값이 실제 클라이언트별 게임인스턴스에 리플리케이션이 되지 않는 현상으로 수정 중.
+//로직 보충 예정
 public:
+	
 	EWinTeam FinalWinner = EWinTeam::None;
 	//승리한 팀을 게임 인스턴스에 저장하지만 기획 상 승패에 따라 역할군별로 위젯 출력하는 구조라면 로비 위젯에서 관리 불가능
 	//만약 매치타입을 인스턴스로 한번 더 저장한다면 전반적인 로직 전체를 수정해야하는 문제 발생.
@@ -33,5 +47,5 @@ public:
 	//WaitingToStart엔 로비 위젯을, GameOver 일때는 결과창 위젯을 출력하도록 로직을 수정할 것.
 	UPROPERTY(BlueprintReadWrite)
 	EMatchTypes LastMatchState = EMatchTypes::WaitingToStart;
-
+	
 };
