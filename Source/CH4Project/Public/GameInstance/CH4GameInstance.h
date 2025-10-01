@@ -12,11 +12,11 @@ struct FPlayerRoleData
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
-	FString PlayerName;
+	UPROPERTY(BlueprintReadWrite)
+	EPlayerRole Role = EPlayerRole::Unassigned;
 
-	UPROPERTY()
-	EPlayerRole Role;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FString PlayerName = TEXT("");
 };
 
 /**
@@ -47,8 +47,5 @@ public:
 	//WaitingToStart엔 로비 위젯을, GameOver 일때는 결과창 위젯을 출력하도록 로직을 수정할 것.
 	UPROPERTY(BlueprintReadWrite)
 	EMatchTypes LastMatchState = EMatchTypes::WaitingToStart;
-
-
-	UPROPERTY(BlueprintReadWrite)
-	EPlayerRole Role;
+	
 };
