@@ -36,3 +36,9 @@ void ACH4ChatPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
     DOREPLIFETIME(ACH4ChatPlayerState, bIsReady);
 }
+
+void ACH4ChatPlayerState::OnRep_PlayerName()
+{
+    Super::OnRep_PlayerName();
+    OnPlayerNameUpdated.Broadcast();
+}

@@ -7,7 +7,6 @@
 #include "GameFramework/PlayerController.h"
 #include "GameState/CH4GameStateBase.h"
 #include "PlayerState/CH4PlayerState.h"
-#include "PlayerController/CH4PlayerController.h"
 #include "Type/MatchTypes.h"
 #include "Kismet/GameplayStatics.h"
 #include "Algo/RandomShuffle.h"
@@ -18,7 +17,7 @@
 #include "EngineUtils.h"
 #include "GameInstance/CH4GameInstance.h"
 #include "SpawnVolume/ItemSpawnVolume.h"
-#include "IngameUI/CH4UserWidget.h"
+#include "Character/CH4Character.h"
 
 ACH4GameMode::ACH4GameMode()
 {
@@ -72,7 +71,8 @@ void ACH4GameMode::PostLogin(APlayerController* NewPlayer)
 
 	if (HasAuthority())
 	{
-		StartItemSpawnTimer();
+		FTimerHandle ItemTimerHandle;
+		GetWorldTimerManager().SetTimer(ItemTimerHandle, this, &ACH4GameMode::StartItemSpawnTimer, 10.0f, false);
 	}
 }
 
@@ -383,9 +383,14 @@ void ACH4GameMode::OnThiefCaught(APawn* ThiefPawn, APlayerController* ArrestingP
 		ThiefPawn->GetController()->UnPossess();
 	}
 	
-	ThiefPawn->Destroy();
+	//ThiefPawn->Destroy();
 	//게임모드 파트에서 해당 작업을 삭제해야할 필요성 발생, 만약 래그돌, 죽음 애니메이션이 실행되어야할 경우 즉시 Destroy 하면 안됨.
 	//따라서 캐릭터 파트에서 애니메이션을 실행한 후 몇초 후 자체적으로 Destroy 하도록 구현해야함. -> 이후 해당 캐릭터를 가져와서 함수를 불러와야함
+	
+	if (ACH4Character* Thief = Cast<ACH4Character>(ThiefPawn))
+	{
+		Thief->MulticastPlayDeathAnimation();
+	}
 	
 	// 킬피드 전파
 	if (GS && GuardPS)
@@ -422,6 +427,43 @@ void ACH4GameMode::OnAICaught(APlayerController* ArrestingPlayer, APawn* AI, boo
 	}
 }
 
+//가드 체포 로직
+void ACH4GameMode::OnGuardCaught(APawn* GuardPawn, APlayerController* ArrestingPlayer)
+{
+	if (!HasAuthority()) return;
+
+	ACH4GameStateBase* GS = GetGameState<ACH4GameStateBase>();
+	if (!GS) return;
+	GS->RemainingPolice = FMath::Max(0, GS->RemainingPolice - 1);
+
+	UE_LOG(LogTemp, Warning, TEXT("Arresting Guard"));
+
+	ACH4PlayerState* VictimPS = GuardPawn->GetController() 
+		? Cast<ACH4PlayerState>(GuardPawn->GetController()->PlayerState) 
+		: nullptr;
+
+	ACH4PlayerState* ArrestorPS = Cast<ACH4PlayerState>(ArrestingPlayer->PlayerState);
+
+	if (GuardPawn->GetController())
+	{
+		GuardPawn->GetController()->UnPossess();
+	}
+
+	// 경찰 캐릭터에 체포 몽타주 추가 필요함.
+	if (ACH4Character* GuardChar = Cast<ACH4Character>(GuardPawn))
+	{
+		GuardChar->MulticastPlayDeathAnimation();
+	}
+
+	// 킬피드 전파
+	if (GS && ArrestorPS)
+	{
+		GS->AddKillFeed(ArrestorPS, VictimPS);
+	}
+
+	CheckWinCondition();
+
+}
 
 void ACH4GameMode::HandleArrest(APlayerController* ArrestingPlayer, APawn* TargetPawn)
 {
@@ -441,8 +483,8 @@ void ACH4GameMode::HandleArrest(APlayerController* ArrestingPlayer, APawn* Targe
 		break;
 
 	case EPlayerRole::Police:
-		UE_LOG(LogTemp, Warning, TEXT("경찰은 체포 대상이 아님!"));
-		break;
+		OnGuardCaught(TargetPawn, ArrestingPlayer);		
+	break;
 
 	default:
 		UE_LOG(LogTemp, Warning, TEXT("경고 해결을 위한 버전입니다.: %d"), (int32)MPS->PlayerRole);
@@ -776,18 +818,15 @@ void ACH4GameMode::SpawnItems()
 void ACH4GameMode::StartItemSpawnTimer()
 {
 	if (!HasAuthority()) return; // 서버 전용
+	
 
-	// 타이머 설정
-	GetWorldTimerManager().SetTimer(
-		ItemSpawnTimerHandle,
-		this,
-		&ACH4GameMode::SpawnItems,
-		ItemSpawnInterval,
-		true // 반복
-	);
+	if (ACH4GameStateBase* GS = GetGameState<ACH4GameStateBase>())
+	{
+		SpawnItems(); // 즉시 스폰
+		// 반복 타이머
+		GetWorldTimerManager().SetTimer(ItemSpawnTimerHandle, this, &ACH4GameMode::SpawnItems, ItemSpawnInterval, true);
+	}
 
-	// 처음 게임 시작 시 한 번 스폰
-	SpawnItems();
 }
 
 void ACH4GameMode::ClearItems()

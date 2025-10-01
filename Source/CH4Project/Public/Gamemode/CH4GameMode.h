@@ -27,11 +27,6 @@ public:
 	
 	virtual void BeginPlay() override;
 	virtual void PostLogin(APlayerController* NewPlayer) override;
-
-
-	//게임모드에서 승 패를 선언한 경우, 결과창 위젯을 레벨 게임모드에서 호출해야함.
-	//로비 측의 작업 현황에 따라 해당 파트 로직의 존속 여부가 결정되어야할 듯.
-
 	
 	/** 역할 배정 */
 	void AssignRoles();
@@ -42,6 +37,7 @@ public:
 	/** 체포 처리 */
 	void OnThiefCaught(APawn* ThiefPawn, APlayerController* ArrestingPlayer);
 	void OnAICaught(APlayerController* ArrestingPlayer, APawn* AI, bool bIsCitizen);
+	void OnGuardCaught(APawn* GuardPawn, APlayerController* ArrestingPlayer);
 	void HandleArrest(APlayerController* ArrestingPlayer, APawn* TargetPawn);
 
 	/* 최대 체포 횟수 갱신 */
@@ -56,12 +52,6 @@ public:
 
 	/** 매치 상태 설정 */
 	void SetMatchState(EMatchTypes NewMatchType);
-
-	/*
-	void SpawnAI(TSubclassOf<APawn> AIPawnClass, float Radius);
-
-	FVector GetRandomSpawnLocation(float Radius);
-	*/
 
 	//로그인 시 플레이어 스테이트로 총 인원을 체크한 후 AssingRoles 콜하는 함수
 	void TryAssignRoles();
@@ -125,9 +115,9 @@ protected:
 	// 주기적 아이템 스폰 타이머
 	FTimerHandle ItemSpawnTimerHandle;
 
-	// 주기적 스폰 간격 (초) 추후 60초로 수정해야할 필요성 있음
+	// 주기적 스폰 간격 (초) 추후 조정해야할 필요성 있음
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Item Spawning")
-	float ItemSpawnInterval = 20.f;
+	float ItemSpawnInterval = 60.f;
 
 	// 맵에 스폰된 아이템 액터들
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Item Spawning")

@@ -45,6 +45,11 @@ void UCH4UserWidget::UpdatePlayerRole(EPlayerRole NewRole)
 	// 2) 표시할 내용
 	FString RoleString = (NewRole == EPlayerRole::Police) ? TEXT("you are Guard") : TEXT("you are Thief");
 	FeedText->SetText(FText::FromString(RoleString));
+
+	FSlateFontInfo FontInfo;
+	FontInfo.FontObject = LoadObject<UObject>(nullptr, TEXT("/Game/IngameUI/Klik-Light_Font.Klik-Light_Font"));
+	FontInfo.Size = 32; // 글자 크기
+	FeedText->SetFont(FontInfo);
 	
 	// 3) VerticalBox에 추가
 	UVerticalBoxSlot* NewSlot = KillFeedBox->AddChildToVerticalBox(FeedText);
@@ -74,6 +79,11 @@ void UCH4UserWidget::AddKillFeedEntry(const FString& KillerName, const FString& 
 	// 2) 표시할 내용
 	FString Log = FString::Printf(TEXT("%s KickOut %s"), *KillerName, *VictimName);
 	FeedText->SetText(FText::FromString(Log));
+
+	FSlateFontInfo FontInfo;
+	FontInfo.FontObject = LoadObject<UObject>(nullptr, TEXT("/Game/IngameUI/Klik-Light_Font.Klik-Light_Font"));
+	FontInfo.Size = 32; // 글자 크기
+	FeedText->SetFont(FontInfo);
 	
 	// 3) VerticalBox에 추가
 	UVerticalBoxSlot* NewSlot = KillFeedBox->AddChildToVerticalBox(FeedText);

@@ -19,6 +19,9 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Game")
     void StartGame();
 
+    UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly)
+    void EndMatchAndShowResult();
+
 protected:
     virtual void BeginPlay() override;
 

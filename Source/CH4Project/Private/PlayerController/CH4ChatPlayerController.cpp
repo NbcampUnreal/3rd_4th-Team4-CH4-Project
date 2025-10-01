@@ -78,6 +78,15 @@ void ACH4ChatPlayerController::RefreshPlayerList_Implementation()
                 int32 Index = 0;
                 for (APlayerState* PS : GS->PlayerArray)
                 {
+                    if (ACH4ChatPlayerState* MyPS = Cast<ACH4ChatPlayerState>(PS))
+                    {
+                        MyPS->OnPlayerNameUpdated.AddUniqueDynamic(
+                            this, &ACH4ChatPlayerController::HandleAnyPlayerNameUpdated);
+
+                        MyPS->OnReadyStateChanged.AddUniqueDynamic(
+                            this, &ACH4ChatPlayerController::HandleAnyReadyChanged);
+                    }
+
                     if (LobbyProfileClass)
                     {
                         if (UUserWidget* Profile = CreateWidget<UUserWidget>(this, LobbyProfileClass))
@@ -88,9 +97,9 @@ void ACH4ChatPlayerController::RefreshPlayerList_Implementation()
                             }
                             if (UCheckBox* ReadyBox = Cast<UCheckBox>(Profile->GetWidgetFromName(TEXT("CheckBox_Ready"))))
                             {
-                                if (ACH4ChatPlayerState* MyPS = Cast<ACH4ChatPlayerState>(PS))
+                                if (ACH4ChatPlayerState* MyPS2 = Cast<ACH4ChatPlayerState>(PS))
                                 {
-                                    ReadyBox->SetIsChecked(MyPS->IsReady());
+                                    ReadyBox->SetIsChecked(MyPS2->IsReady());
                                 }
                             }
 
@@ -102,6 +111,16 @@ void ACH4ChatPlayerController::RefreshPlayerList_Implementation()
             }
         }
     }
+}
+
+void ACH4ChatPlayerController::HandleAnyPlayerNameUpdated()
+{
+    RefreshPlayerList();
+}
+
+void ACH4ChatPlayerController::HandleAnyReadyChanged(bool)
+{
+    RefreshPlayerList();
 }
 
 void ACH4ChatPlayerController::ShowResultScreen_Implementation(bool bIsWin)
@@ -151,6 +170,14 @@ void ACH4ChatPlayerController::SetInGameInput_Implementation()
 
     FInputModeGameOnly Mode;
     SetInputMode(Mode);
+}
+
+void ACH4ChatPlayerController::Server_RequestReturnLobby_Implementation()
+{
+    if (HasAuthority())
+    {
+        GetWorld()->ServerTravel(TEXT("/Game/Maps/LobbyMap?listen"));
+    }
 }
 
 // 로비로 복귀

@@ -1,4 +1,4 @@
-#include "Character/CH4Character.h"
+ï»¿#include "Character/CH4Character.h"
 #include "Components/CapsuleComponent.h"
 #include "Animation/AnimInstance.h"
 #include "AnimInstance/CH4AnimInstance.h"
@@ -14,13 +14,14 @@
 #include "IngameUI/CH4UserWidget.h"
 #include "Item/BaseItem.h"
 #include "Item/PickUp.h"
+#include "Item/ClockItem.h"
 
 ACH4Character::ACH4Character()
 {
 	PrimaryActorTick.bCanEverTick = true;
 	bReplicates = true;
 
-	// º¯¼ö ÃÊ±âÈ­
+	// ë³€ìˆ˜ ì´ˆê¸°í™”
 	DefaultMappingContext = nullptr;
 	JumpAction = nullptr;
 	LookAction = nullptr;
@@ -33,10 +34,10 @@ ACH4Character::ACH4Character()
 	bUsingItem = false;
 	bUsingItem = false;
 
-	// ÀÎº¥Åä¸® Å©±â 2·Î ¼³Á¤ (½½·Ô 2Ä­)
-	Inventory.SetNum(2); 
+	// ì¸ë²¤í† ë¦¬ í¬ê¸° 2ë¡œ ì„¤ì • (ìŠ¬ë¡¯ 2ì¹¸)
+	Inventory.SetNum(2);
 
-	// Ä«¸Ş¶ó ÄÄÆ÷³ÍÆ® »ı¼º ¹× ¿¬°á
+	// ì¹´ë©”ë¼ ì»´í¬ë„ŒíŠ¸ ìƒì„± ë° ì—°ê²°
 	SpringArmComp = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
 	SpringArmComp->SetupAttachment(RootComponent);
 	SpringArmComp->TargetArmLength = 300.f;
@@ -46,13 +47,13 @@ ACH4Character::ACH4Character()
 	CameraComp->SetupAttachment(SpringArmComp, USpringArmComponent::SocketName);
 	CameraComp->bUsePawnControlRotation = false;
 
-	// Ä³¸¯ÅÍ ÀÌµ¿ ¼³Á¤
+	// ìºë¦­í„° ì´ë™ ì„¤ì •
 	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
 	bUseControllerRotationYaw = false;
 	GetCharacterMovement()->bOrientRotationToMovement = true;
 	GetCharacterMovement()->RotationRate = FRotator(0.f, 720.f, 0.f);
 
-	// Ãæµ¹ ÀÌº¥Æ® ¹ÙÀÎµù
+	// ì¶©ëŒ ì´ë²¤íŠ¸ ë°”ì¸ë”©
 	GetCapsuleComponent()->OnComponentBeginOverlap.AddDynamic(this, &ACH4Character::OnOverlapBegin);
 }
 
@@ -76,25 +77,26 @@ void ACH4Character::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	// Å¬¶óÀÌ¾ğÆ®¿¡¼­¸¸ ÀÌµ¿ º¯¼ö ¾÷µ¥ÀÌÆ®
+	// í´ë¼ì´ì–¸íŠ¸ì—ì„œë§Œ ì´ë™ ë³€ìˆ˜ ì—…ë°ì´íŠ¸
 	if (IsLocallyControlled())
 	{
 		Speed = GetVelocity().Size();
 		bIsJumping = GetCharacterMovement()->IsFalling();
 	}
 
-	if (HasAuthority()) // ¼­¹ö¿¡¼­¸¸ ½ÇÇà
-	{
-		bIsRunning = (GetVelocity().Size() > WalkSpeed + 10.0f);
-	}
+	//if (HasAuthority()) // ì„œë²„ì—ì„œë§Œ ì‹¤í–‰
+	//{
+	//	bIsRunning = (GetVelocity().Size() > WalkSpeed + 10.0f);
+	//}
 
-	// ¾Ö´Ï¸ŞÀÌ¼Ç ÀÎ½ºÅÏ½º¿¡ º¹Á¦µÈ º¯¼ö ¹× ·ÎÄÃ º¯¼ö Àü´Ş
+	// ì• ë‹ˆë©”ì´ì…˜ ì¸ìŠ¤í„´ìŠ¤ì— ë³µì œëœ ë³€ìˆ˜ ë° ë¡œì»¬ ë³€ìˆ˜ ì „ë‹¬
 	if (UCH4AnimInstance* AnimInst = Cast<UCH4AnimInstance>(GetMesh()->GetAnimInstance()))
 	{
 		AnimInst->bIsJumping = bIsJumping;
 		AnimInst->bIsRunning = bIsRunning;
 		AnimInst->Speed = Speed;
 		AnimInst->bUsingItem = bUsingItem;
+		AnimInst->bIsStunned = bIsStunned;
 	}
 }
 
@@ -147,19 +149,72 @@ void ACH4Character::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLif
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME_CONDITION(ACH4Character, bIsJumping, COND_SkipOwner);
-	DOREPLIFETIME_CONDITION(ACH4Character, bIsRunning, COND_SkipOwner);
+	DOREPLIFETIME(ACH4Character, bIsRunning);
 	DOREPLIFETIME(ACH4Character, Inventory);
 	DOREPLIFETIME(ACH4Character, CurrentMaxWalkSpeed);
 	DOREPLIFETIME(ACH4Character, Speed);
 	DOREPLIFETIME(ACH4Character, bIsDead);
+	DOREPLIFETIME(ACH4Character, bIsStunned);
+}
+
+void ACH4Character::SetCharacterMaxWalkSpeed(float NewMaxWalkSpeed)
+{
+	// ì„œë²„ì—ì„œë§Œ ì‹¤í–‰
+	if (!HasAuthority()) return;
+
+	// ë³µì œ ë³€ìˆ˜ë¥¼ ë³€ê²½ (í´ë¼ì´ì–¸íŠ¸ì—ê²Œ ì „ë‹¬ë¨)
+	CurrentMaxWalkSpeed = NewMaxWalkSpeed;
+
+	OnRep_MaxWalkSpeed();
 }
 
 void ACH4Character::OnRep_MaxWalkSpeed()
 {
-	GetCharacterMovement()->MaxWalkSpeed = CurrentMaxWalkSpeed;	
+	GetCharacterMovement()->MaxWalkSpeed = CurrentMaxWalkSpeed;
+	UE_LOG(LogTemp, Warning, TEXT("Client/Server: MaxWalkSpeed updated to %f"), CurrentMaxWalkSpeed);
+
+	if (!HasAuthority()) // í´ë¼ì´ì–¸íŠ¸ì—ì„œë§Œ ì‹¤í–‰
+	{
+		// í´ë¼ì´ì–¸íŠ¸ì˜ MaxWalkSpeedê°€ ê¸°ë³¸ ê±·ê¸° ì†ë„ë³´ë‹¤ ë†’ìœ¼ë©´ ë‹¬ë¦¬ê¸°
+		bIsRunning = (GetCharacterMovement()->MaxWalkSpeed > WalkSpeed + 10.0f);
+	}
+
+	bIsRunning = (GetCharacterMovement()->MaxWalkSpeed > WalkSpeed + 10.0f);
 }
 
-// Ãæµ¹ ÀÌº¥Æ®
+void ACH4Character::ServerHandleDeath_Implementation()
+{
+}
+
+void ACH4Character::MulticastPlayDeathAnimation_Implementation()
+{
+
+	if (UAnimInstance* AnimInst = GetMesh()->GetAnimInstance())
+	{
+		if (DieMontage)
+		{
+			float MontageDuration = AnimInst->Montage_Play(DieMontage);
+
+			GetWorldTimerManager().SetTimer(
+				DestroyTimerHandle,
+				this,
+				&ACH4Character::RemoveCharacterAfterDeath,
+				MontageDuration, // ì• ë‹ˆë©”ì´ì…˜ ì¬ìƒ ì‹œê°„
+				false
+			);
+		}
+		else
+		{
+			RemoveCharacterAfterDeath(); // ëª½íƒ€ì£¼ê°€ ì—†ìœ¼ë©´ ë°”ë¡œ ì‚­ì œ
+		}
+	}
+	else
+	{
+		RemoveCharacterAfterDeath();
+	}
+}
+
+// ì¶©ëŒ ì´ë²¤íŠ¸
 void ACH4Character::OnOverlapBegin(UPrimitiveComponent* OverlappedComp,
 	AActor* OtherActor,
 	UPrimitiveComponent* OtherComp,
@@ -167,7 +222,7 @@ void ACH4Character::OnOverlapBegin(UPrimitiveComponent* OverlappedComp,
 	bool bFromSweep,
 	const FHitResult& SweepResult)
 {
-	// ¼­¹ö¿¡¼­¸¸ ·ÎÁ÷ ½ÇÇà
+	// ì„œë²„ì—ì„œë§Œ ë¡œì§ ì‹¤í–‰
 	if (!HasAuthority())
 	{
 		return;
@@ -178,21 +233,40 @@ void ACH4Character::OnOverlapBegin(UPrimitiveComponent* OverlappedComp,
 		return;
 	}
 
+	if (OtherActor->ActorHasTag("Trap")) // íƒœê·¸ ì¶”ê°€ ìš”ì²­
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Hit a trap Character stunned."));
+		ServerPlayStunAnimation(); // ì„œë²„ì—ì„œ ê¸°ì ˆ ì• ë‹ˆë©”ì´ì…˜ ì¬ìƒ
+		return;
+	}
+
 	UE_LOG(LogTemp, Warning, TEXT("Character detected conflict with %s"), *OtherActor->GetName());
 
-	// Ãæµ¹ÇÑ ¾×ÅÍ¸¦ APickUp Å¬·¡½º·Î Ä³½ºÆÃ
+	// ì¶©ëŒí•œ ì•¡í„°ë¥¼ APickUp í´ë˜ìŠ¤ë¡œ ìºìŠ¤íŒ…
 	if (APickUp* PickUpActor = Cast<APickUp>(OtherActor))
 	{
 		UE_LOG(LogTemp, Warning, TEXT("crashed actor PickUp item. Item class: %s"), *PickUpActor->GetClass()->GetName());
 
-		// ¾ÆÀÌÅÛ Å¬·¡½º°¡ À¯È¿ÇÑÁö È®ÀÎ
+		// ì•„ì´í…œ í´ë˜ìŠ¤ê°€ ìœ íš¨í•œì§€ í™•ì¸
 		if (PickUpActor->ItemClass)
 		{
-			// ¼­¹ö¿¡¼­ ¾ÆÀÌÅÛ °´Ã¼¸¦ »ı¼º
+			// ì„œë²„ì—ì„œ ì•„ì´í…œ ê°ì²´ë¥¼ ìƒì„±
 			UBaseItem* NewItem = NewObject<UBaseItem>(this, PickUpActor->ItemClass);
 			if (NewItem)
 			{
-				// ÀÎº¥Åä¸®¿¡ ¾ÆÀÌÅÛ Ãß°¡
+				if (UClockItem* Clock = Cast<UClockItem>(NewItem))
+				{
+					// PickUp ë¨¼ì € ì œê±°
+					PickUpActor->Destroy();
+
+					// ì¦‰ì‹œ ì‚¬ìš©
+					Clock->UseItem(this);
+
+					// UObject ì œê±°
+					NewItem->ConditionalBeginDestroy();
+				}
+
+				// ì¸ë²¤í† ë¦¬ì— ì•„ì´í…œ ì¶”ê°€
 				for (int32 i = 0; i < Inventory.Num(); i++)
 				{
 					if (Inventory[i] == nullptr)
@@ -200,17 +274,17 @@ void ACH4Character::OnOverlapBegin(UPrimitiveComponent* OverlappedComp,
 						Inventory[i] = NewItem;
 						UE_LOG(LogTemp, Warning, TEXT("Added item '%s' to inventory slot %d"), *NewItem->GetClass()->GetName(), i);
 
-						// UI °»½ÅÀ» À§ÇØ Å¬¶óÀÌ¾ğÆ®·Î RPC È£Ãâ
+						// UI ê°±ì‹ ì„ ìœ„í•´ í´ë¼ì´ì–¸íŠ¸ë¡œ RPC í˜¸ì¶œ
 						ClientUpdateInventoryUI();
 
-						// ¾ÆÀÌÅÛÀ» ÁÖ¿üÀ¸¸é Áİ´Â ¾ÆÀÌÅÛ ¾×ÅÍ ÆÄ±«
+						// ì•„ì´í…œì„ ì£¼ì› ìœ¼ë©´ ì¤ëŠ” ì•„ì´í…œ ì•¡í„° íŒŒê´´
 						PickUpActor->Destroy();
 						UE_LOG(LogTemp, Warning, TEXT("Destroyed the PickUp actor in the world"));
 						return;
 					}
 				}
 
-				// ÀÎº¥Åä¸®°¡ °¡µæ Ã¡À¸¸é ¾ÆÀÌÅÛ »èÁ¦
+				// ì¸ë²¤í† ë¦¬ê°€ ê°€ë“ ì°¼ìœ¼ë©´ ì•„ì´í…œ ì‚­ì œ
 				NewItem->ConditionalBeginDestroy();
 				UE_LOG(LogTemp, Warning, TEXT("Inventory is full"));
 			}
@@ -218,7 +292,7 @@ void ACH4Character::OnOverlapBegin(UPrimitiveComponent* OverlappedComp,
 	}
 }
 
-// ÀÎº¥Åä¸® UI ¾÷µ¥ÀÌÆ® Å¬¶óÀÌ¾ğÆ® RPC
+// ì¸ë²¤í† ë¦¬ UI ì—…ë°ì´íŠ¸ í´ë¼ì´ì–¸íŠ¸ RPC
 void ACH4Character::ClientUpdateInventoryUI_Implementation()
 {
 	//UpdateHeldItemUI(Inventory.IsValidIndex(0) ? Inventory[0] : nullptr);
@@ -228,17 +302,17 @@ void ACH4Character::ClientUpdateInventoryUI_Implementation()
 		{
 			if (MyPC->MyHUDWidget)
 			{
-				// ºôµå ¿À·ù¶§¹®¿¡ ÁÖ¼® Ã³¸®
-				//MyPC->MyHUDWidget->UpdateInventoryUI(Inventory);
+				// ë¹Œë“œ ì˜¤ë¥˜ë•Œë¬¸ì— ì£¼ì„ ì²˜ë¦¬
+				MyPC->MyHUDWidget->UpdateInventoryUI(Inventory);
 			}
 		}
 	}
 }
 
-// ¾ÆÀÌÅÛ »ç¿ë
+// ì•„ì´í…œ ì‚¬ìš©
 void ACH4Character::UseSlot1()
 {
-	// ·ÎÄÃ¿¡¼­¸¸ ¼­¹ö RPC¸¦ È£Ãâ
+	// ë¡œì»¬ì—ì„œë§Œ ì„œë²„ RPCë¥¼ í˜¸ì¶œ
 	if (IsLocallyControlled())
 	{
 		ServerUseItem(0);
@@ -247,17 +321,17 @@ void ACH4Character::UseSlot1()
 
 void ACH4Character::UseSlot2()
 {
-	// ·ÎÄÃ¿¡¼­¸¸ ¼­¹ö RPC¸¦ È£Ãâ
+	// ë¡œì»¬ì—ì„œë§Œ ì„œë²„ RPCë¥¼ í˜¸ì¶œ
 	if (IsLocallyControlled())
 	{
 		ServerUseItem(1);
 	}
 }
 
-// ¼­¹ö¿¡¼­ ¾ÆÀÌÅÛ »ç¿ë ¿äÃ»À» ¹Ş¾Æ¼­ Ã³¸® (¼­¹ö)
+// ì„œë²„ì—ì„œ ì•„ì´í…œ ì‚¬ìš© ìš”ì²­ì„ ë°›ì•„ì„œ ì²˜ë¦¬ (ì„œë²„)
 void ACH4Character::ServerUseItem_Implementation(int32 SlotIndex)
 {
-	// ÀÎº¥Åä¸®, ¾ÆÀÌÅÛÀÌ Á¸ÀçÇÏ°í ÇöÀç ¾ÆÀÌÅÛÀ» »ç¿ë ÁßÀÌ ¾Æ´Ò ¶§¸¸ ÁøÇà
+	// ì¸ë²¤í† ë¦¬, ì•„ì´í…œì´ ì¡´ì¬í•˜ê³  í˜„ì¬ ì•„ì´í…œì„ ì‚¬ìš© ì¤‘ì´ ì•„ë‹ ë•Œë§Œ ì§„í–‰
 	if (!Inventory.IsValidIndex(SlotIndex) || !Inventory[SlotIndex] || bUsingItem)
 	{
 		UE_LOG(LogTemp, Error, TEXT("failed to use. Index: %d, Item Validity: %d, In Use: %d"),
@@ -265,36 +339,36 @@ void ACH4Character::ServerUseItem_Implementation(int32 SlotIndex)
 		return;
 	}
 
-	// ¾ÆÀÌÅÛ »ç¿ë »óÅÂ º¯°æ
+	// ì•„ì´í…œ ì‚¬ìš© ìƒíƒœ ë³€ê²½
 	bUsingItem = true;
 
-	// ¾ÆÀÌÅÛÀÇ »ç¿ë ÇÔ¼ö È£Ãâ
+	// ì•„ì´í…œì˜ ì‚¬ìš© í•¨ìˆ˜ í˜¸ì¶œ
 	Inventory[SlotIndex]->UseItem(this);
 	UE_LOG(LogTemp, Warning, TEXT("Server: Use items in slot %d"), SlotIndex);
 
-	// ¾ÆÀÌÅÛ »ç¿ë ÈÄ ÀÎº¥Åä¸®¿¡¼­ Á¦°Å
+	// ì•„ì´í…œ ì‚¬ìš© í›„ ì¸ë²¤í† ë¦¬ì—ì„œ ì œê±°
 	Inventory[SlotIndex] = nullptr;
 
-	// UI ¾÷µ¥ÀÌÆ®¸¦ À§ÇØ Å¬¶óÀÌ¾ğÆ®·Î RPC È£Ãâ
+	// UI ì—…ë°ì´íŠ¸ë¥¼ ìœ„í•´ í´ë¼ì´ì–¸íŠ¸ë¡œ RPC í˜¸ì¶œ
 	ClientUpdateInventoryUI();
 
-	// ÀÏÁ¤ ½Ã°£ ÈÄ¿¡ ´Ù½Ã ¾ÆÀÌÅÛÀ» »ç¿ëÇÒ ¼ö ÀÖµµ·Ï ¼³Á¤
+	// ì¼ì • ì‹œê°„ í›„ì— ë‹¤ì‹œ ì•„ì´í…œì„ ì‚¬ìš©í•  ìˆ˜ ìˆë„ë¡ ì„¤ì •
 	GetWorld()->GetTimerManager().SetTimerForNextTick(this, &ACH4Character::ResetUsingItem);
 }
 
 void ACH4Character::ServerResetMovementSpeed_Implementation()
 {
-	// ±âº» °È±â ¼Óµµ·Î µÇµ¹¸²
+	// ê¸°ë³¸ ê±·ê¸° ì†ë„ë¡œ ë˜ëŒë¦¼
 	CurrentMaxWalkSpeed = WalkSpeed;
-	OnRep_MaxWalkSpeed(); // Å¬¶óÀÌ¾ğÆ®¿¡µµ º¯°æµÈ ¼Óµµ µ¿±âÈ­
+	OnRep_MaxWalkSpeed(); // í´ë¼ì´ì–¸íŠ¸ì—ë„ ë³€ê²½ëœ ì†ë„ ë™ê¸°í™”
 
-	// ¾Ö´Ï¸ŞÀÌ¼Ç »óÅÂ¸¦ ¾÷µ¥ÀÌÆ®ÇÏ±â À§ÇØ bIsRunning º¯¼ö¸¦ false·Î ¼³Á¤
-	bIsRunning = false;
+	//// ì• ë‹ˆë©”ì´ì…˜ ìƒíƒœë¥¼ ì—…ë°ì´íŠ¸í•˜ê¸° ìœ„í•´ bIsRunning ë³€ìˆ˜ë¥¼ falseë¡œ ì„¤ì •
+	//bIsRunning = false;
 
 	UE_LOG(LogTemp, Warning, TEXT("Server: Speed reset to WalkSpeed"));
 }
 
-// ¾ÆÀÌÅÛ »ç¿ë »óÅÂ¸¦ ÃÊ±âÈ­
+// ì•„ì´í…œ ì‚¬ìš© ìƒíƒœë¥¼ ì´ˆê¸°í™”
 void ACH4Character::ResetUsingItem()
 {
 	bUsingItem = false;
@@ -303,13 +377,14 @@ void ACH4Character::ResetUsingItem()
 
 void ACH4Character::Die()
 {
-	// ÀÌ¹Ì Á×Àº »óÅÂ¶ó¸é ÇÔ¼ö¸¦ Á¾·á
+	// ì´ë¯¸ ì£½ì€ ìƒíƒœë¼ë©´ í•¨ìˆ˜ë¥¼ ì¢…ë£Œ
 	if (bIsDead) return;
 
-	// ¼­¹ö¿¡¼­¸¸ bIsDead »óÅÂ¸¦ º¯°æ
+	// ì„œë²„ì—ì„œë§Œ bIsDead ìƒíƒœë¥¼ ë³€ê²½
 	if (HasAuthority())
 	{
 		bIsDead = true;
+		OnRep_IsDead();
 	}
 }
 
@@ -317,13 +392,58 @@ void ACH4Character::OnRep_IsDead()
 {
 	if (bIsDead)
 	{
-		// ÀÔ·Â ¸·±â
+		// ì…ë ¥ ë§‰ê¸°
 		DisableInput(Cast<APlayerController>(GetController()));
+	}
+}
 
-		// ¾Ö´Ï¸ŞÀÌ¼Ç Àç»ı
-		if (UCH4AnimInstance* AnimInst = Cast<UCH4AnimInstance>(GetMesh()->GetAnimInstance()))
+void ACH4Character::RemoveCharacterAfterDeath()
+{
+	if (HasAuthority())
+	{
+		Destroy();
+		UE_LOG(LogTemp, Warning, TEXT("%s: Character destroyed after death"), *GetName());
+	}
+}
+
+void ACH4Character::ServerPlayStunAnimation_Implementation()
+{
+	if (bIsStunned) return;
+
+	bIsStunned = true;
+	PlayStunAnimation(); // ì„œë²„ ìì‹ ì—ê²Œ ì• ë‹ˆë©”ì´ì…˜ ì¬ìƒ ì‹œì‘
+
+	// ì• ë‹ˆë©”ì´ì…˜ì´ ëë‚˜ë©´ ìƒíƒœë¥¼ ì›ë˜ëŒ€ë¡œ ëŒë¦´ íƒ€ì´ë¨¸ë¥¼ ì„¤ì •
+	const float StunAnimDuration = 2.8f;
+	GetWorldTimerManager().SetTimer(
+		RunSpeedTimerHandle,
+		this,
+		&ACH4Character::ResetStunState,
+		StunAnimDuration,
+		false
+	);
+}
+
+void ACH4Character::PlayStunAnimation()
+{
+	if (UCH4AnimInstance* AnimInst = Cast<UCH4AnimInstance>(GetMesh()->GetAnimInstance()))
+	{
+		if (StunMontage)
 		{
-			AnimInst->PlayDeadAnimation();
+			AnimInst->Montage_Play(StunMontage);
+			UE_LOG(LogTemp, Warning, TEXT("%s: Play Stun Montage"), *GetName());
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("StunMontage is NULL on %s"), *GetName());
 		}
 	}
+}
+
+void ACH4Character::ResetStunState()
+{
+	if (!HasAuthority()) return;
+
+	bIsStunned = false; // ë³µì œ
+	UE_LOG(LogTemp, Warning, TEXT("Server: Reset Stun State"));
 }

@@ -9,7 +9,6 @@ void UCokeItem::UseItem_Implementation(ACH4Character* Character)
     if (!Character || !Character->GetCharacterMovement()) return;
     if (!Character->HasAuthority()) return;
 
-    UCharacterMovementComponent* Movement = Character->GetCharacterMovement();
     UWorld* World = Character->GetWorld();
     if (!World) return;
 
@@ -19,7 +18,7 @@ void UCokeItem::UseItem_Implementation(ACH4Character* Character)
     if (!bIsBuffActive)
     {
         // 처음 사용할 때만 기본 속도 기준으로 +300 적용
-        Movement->MaxWalkSpeed = Character->WalkSpeed + 300.f;
+       Character->GetCharacterMovement()->MaxWalkSpeed = Character->WalkSpeed + 300.f;
     }
 
     // 항상 리셋 타이머만 새로 갱신
