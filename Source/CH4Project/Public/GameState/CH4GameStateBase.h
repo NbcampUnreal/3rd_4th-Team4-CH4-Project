@@ -66,7 +66,6 @@ public:
 	/** 서버 RPC: 매치 상태 설정 */
 	UFUNCTION(Server, Reliable, WithValidation)
 	void ServerSetMatchState(EMatchTypes NewMatchType);
-	void ServerSetMatchState_Implementation(EMatchTypes NewMatchType);
 	bool ServerSetMatchState_Validate(EMatchTypes NewMatchType);
 
 	// 현재까지 발생한 모든 킬 로그

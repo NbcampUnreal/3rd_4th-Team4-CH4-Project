@@ -16,7 +16,7 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
-
+	virtual void Tick(float DeltaSeconds) override;
 
 public:
 	// 로비 화면
@@ -68,11 +68,17 @@ public:
 	UFUNCTION(Server, Reliable)
 	void Server_RequestReturnLobby();
 
-	// 로비로 돌아가기
-	UFUNCTION(BlueprintCallable)
-	void ReturnLobby();
+	UFUNCTION()
+	void HandleReturnLobbyClicked();
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Network")
+	FString LobbyServerURL = TEXT("127.0.0.1:7777");
 
 	// 개인 클라이언트 게임 종료
 	UFUNCTION(BlueprintCallable, Category = "Game")
 	void ExitGame();
+
+private:
+	bool bPrevMatchEnded = false;
+	bool bCachedResult = false;
 };
