@@ -68,9 +68,11 @@ public:
 	UFUNCTION(Server, Reliable)
 	void Server_RequestReturnLobby();
 
-	// 로비로 돌아가기
-	UFUNCTION(BlueprintCallable)
-	void ReturnLobby();
+	UFUNCTION()
+	void HandleReturnLobbyClicked();
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Network")
+	FString LobbyServerURL = TEXT("127.0.0.1:7777");
 
 	// 개인 클라이언트 게임 종료
 	UFUNCTION(BlueprintCallable, Category = "Game")
