@@ -23,6 +23,9 @@ void ATrapActor::BeginPlay()
 {
 	Super::BeginPlay();
 
+	TrapOwner = GetOwner(); 
+	SpawnTime = GetWorld()->GetTimeSeconds();
+	
 	OnActorBeginOverlap.AddDynamic(this, &ATrapActor::OnOverlap);
 }
 
@@ -32,11 +35,14 @@ void ATrapActor::OnOverlap(AActor* OverlappedActor, AActor* OtherActor)
 
 	if (ACH4Character* HitCharacter = Cast<ACH4Character>(OtherActor))
 	{
-		// 트랩 설치자(Owner)는 무시
-		if (HitCharacter == GetOwner())
+		// 설치자면 무시 시간 체크
+		if (HitCharacter == TrapOwner)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Trap ignored owner: %s"), *HitCharacter->GetName());
-			return;
+			float CurrentTime = GetWorld()->GetTimeSeconds();
+			if (CurrentTime - SpawnTime < OwnerIgnoreDuration)
+			{
+				return; 
+			}
 		}
 		
 		HitCharacter->ServerPlayStunAnimation();
