@@ -48,4 +48,7 @@ public:
 	UPROPERTY(BlueprintReadWrite)
 	EMatchTypes LastMatchState = EMatchTypes::WaitingToStart;
 
+
+	UPROPERTY(BlueprintReadWrite)
+	EPlayerRole Role;
 };

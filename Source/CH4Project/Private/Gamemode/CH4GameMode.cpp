@@ -199,32 +199,67 @@ void ACH4GameMode::CheckWinCondition() //승리 조건 체크 로직으로 추�
 	
 	if (!GS || !GI) return;
 
-	bool bGameOver = false;
 	
+	if (bGameOverHandled) return;
+
 	if (GS->RemainingThieves <= 0) //경찰 승리조건
 	{
 		//게임 인스턴스에 게임모드, 즉 서버가 직접 개입하면 문제 발생 이 파트를 게임 스테이트에서 저장용으로 지정한 후, 게임스테이트의 함수를 불러오는 방식으로 구현해야함.
-		GI -> FinalWinner = EWinTeam::Police;
-		SetMatchState(EMatchTypes::GameOver);
-		HandleGameOver();
-		bGameOver = true;
-	}
-	if (GS->MatchTime <= 0.f)
-	{
-		GI -> FinalWinner = EWinTeam::Thief;
-		SetMatchState(EMatchTypes::GameOver);
-		HandleGameOver();
-		bGameOver = true;
-		
-	}
-	else if (GS->RemainingPolice <= 0 )
-	{
-		GI -> FinalWinner = EWinTeam::Thief;
+		if (GI)
+		{
+			GI->FinalWinner = EWinTeam::Police;
+			UE_LOG(LogTemp, Warning, TEXT("[CheckWinCondition] GI->FinalWinner = Police로 세팅, 실제 값: %d"), static_cast<uint8>(GI->FinalWinner));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("[CheckWinCondition] GI가 nullptr!"));
+		}
+		//GI->FinalWinner = EWinTeam::Police;
 		SetMatchState(EMatchTypes::GameOver);
 		HandleGameOver();
 		bGameOverHandled = true;
-
+		return;
 	}
+	if (GS->MatchTime <= 0.f)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CheckWinCondition] 시간 초과 승리 조건 체크"));
+
+		if (GI)
+		{
+			GI->FinalWinner = EWinTeam::Thief;
+			UE_LOG(LogTemp, Warning, TEXT("[CheckWinCondition] GI->FinalWinner = Thief로 세팅, 실제 값: %d"), static_cast<uint8>(GI->FinalWinner));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("[CheckWinCondition] GI가 nullptr!"));
+		}
+		//GI -> FinalWinner = EWinTeam::Thief;
+		SetMatchState(EMatchTypes::GameOver);
+		HandleGameOver();
+		bGameOverHandled = true;
+		return;
+	}
+	else if (GS->RemainingPolice <= 0 )
+	{
+
+		if (GI)
+		{
+			GI->FinalWinner = EWinTeam::Thief;
+			UE_LOG(LogTemp, Warning, TEXT("[CheckWinCondition] GI->FinalWinner = Thief로 세팅, 실제 값: %d"), static_cast<uint8>(GI->FinalWinner));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("[CheckWinCondition] GI가 nullptr!"));
+		}
+		//GI -> FinalWinner = EWinTeam::Thief;
+		SetMatchState(EMatchTypes::GameOver);
+		HandleGameOver();
+		bGameOverHandled = true;
+		return;
+	}
+	
+	UE_LOG(LogTemp, Warning, TEXT("[CheckWinCondition] 승리 조건 미달로 HandleGameOver 호출되지 않음"));
+
 }
 
 void ACH4GameMode::HandleGameOver()
@@ -233,94 +268,54 @@ void ACH4GameMode::HandleGameOver()
 
 	ACH4GameStateBase* GS = GetGameState<ACH4GameStateBase>();
 	UCH4GameInstance* GI = GetGameInstance<UCH4GameInstance>();
-	
-	TArray<FPlayerRoleData> RoleArray;
 
-	if (GI)
+	if (!GS || !GI)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[HandleGameOver] GameInstance 확인 완료"));
-		
-		GI->LastMatchState = EMatchTypes::GameOver;
-		UE_LOG(LogTemp, Log, TEXT("[HandleGameOver] LastMatchState = GameOver로 설정"));
-
-		GI->LastRoles.Empty();
-		UE_LOG(LogTemp, Log, TEXT("[HandleGameOver] LastRoles 초기화"));
-		
-		for (APlayerState* PS : GS->PlayerArray)
-		{
-			if (ACH4PlayerState* MyPS = Cast<ACH4PlayerState>(PS))
-			{
-				FPlayerRoleData Data;
-				Data.PlayerName = MyPS->GetPlayerName();
-				Data.Role = MyPS->GetPlayerRole();
-				RoleArray.Add(Data);
-			}
-		}
+		UE_LOG(LogTemp, Error, TEXT("[HandleGameOver] GameState 또는 GameInstance가 nullptr!"));
+		return;
 	}
 
-	//게임 인스턴스에 값을 클라이언트에 업데이트 하는 로직 추가
+	GI->LastMatchState = EMatchTypes::GameOver;
+	UE_LOG(LogTemp, Log, TEXT("[HandleGameOver] LastMatchState GameInstance에 세팅 완료 (실제 GI 값: %d)"), 
+		static_cast<uint8>(GI->LastMatchState));
+	
+	GI->LastRoles.Empty();
+	TArray<FPlayerRoleData> RoleArray;
+	
 	for (APlayerState* PS : GS->PlayerArray)
 	{
-		if (APlayerController* PC = Cast<APlayerController>(PS->GetOwner()))
+		if (ACH4PlayerState* MyPS = Cast<ACH4PlayerState>(PS))
 		{
-			if (ACH4PlayerController* MyPC = Cast<ACH4PlayerController>(PC))
-			{
-				MyPC->Client_UpdateMatchData(GI->FinalWinner, RoleArray);
-			}
-		}
-	}
+			FPlayerRoleData Data;
+			Data.PlayerName = MyPS->GetPlayerName();
+			Data.Role = MyPS->GetPlayerRole();
 
-	// AI 캐릭터 및 플레이어 캐릭터 삭제용 로직
-	TArray<APawn*> PawnsToDestroy;
+			RoleArray.Add(Data);
+			GI->LastRoles.Add(Data.PlayerName, Data.Role);
 
-	for (TActorIterator<APawn> It(GetWorld()); It; ++It)
-	{
-		APawn* Pawn = *It;
-		if (Pawn && Pawn->HasAuthority())
-		{
-			PawnsToDestroy.Add(Pawn);
+			UE_LOG(LogTemp, Log, TEXT("[HandleGameOver] LastRoles 업데이트: %s -> %d"), 
+				*Data.PlayerName, static_cast<uint8>(Data.Role));
 		}
 	}
-	for (APawn* Pawn : PawnsToDestroy)
-	{
-		if (Pawn)
-		{
-			AController* Controller = Pawn->GetController();
-			if (Controller)
-			{
-				Controller->UnPossess();
-			}
-			Pawn->Destroy();
-		}
-	}
-	//폰을 수집한 후, 수집된 폰을 전부 삭제하는 파트.
-	//게임 종료 시에만 동작하는 최종 리셋 파트로 혹시 모를 최적화 문제를 위해 보충
+	UE_LOG(LogTemp, Log, TEXT("[HandleGameOver] 총 %d개의 LastRoles GameInstance에 저장 완료"), GI->LastRoles.Num());
 
 	
+	EWinTeam Winner = GI->FinalWinner;
+	UE_LOG(LogTemp, Log, TEXT("[HandleGameOver] 최종 승리자 GameInstance 값: %d"), static_cast<uint8>(Winner));
 
-	TArray<APlayerState*> PlayerStatesCopy = GameState->PlayerArray;
-	for (int32 i = 0; i < PlayerStatesCopy.Num(); ++i)
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
 	{
-		ACH4PlayerState* TPS = Cast<ACH4PlayerState>(PlayerStatesCopy[i]);
-		if (TPS)
+		if (ACH4PlayerController* PC = Cast<ACH4PlayerController>(It->Get()))
 		{
-			TPS->SetPlayerRole(EPlayerRole::Unassigned);
+			PC->Client_UpdateMatchData(Winner, RoleArray);
+			UE_LOG(LogTemp, Log, TEXT("[HandleGameOver] Client_UpdateMatchData 호출: %s"), 
+				*PC->GetName());
 		}
 	}
-
 	
+	FTimerHandle TimerHandle;
+	GetWorldTimerManager().SetTimer(TimerHandle, this, &ACH4GameMode::RestartGame, 1.0f, false);
 	
-	//게임 모드 내 모든 타이머 초기화
-	GetWorldTimerManager().ClearAllTimersForObject(this);
-	ClearItems();
-	UE_LOG(LogTemp, Warning, TEXT("게임 오버 처리 완료"));
-	RestartGame();
-
-	//이 파트에서 약간의 딜레이 있음. UnPossess 후 Destroy될 때, 레벨 화면이 잠시 출력되며 그 상황에서 출력할 내부 UI가 추가로 필요할 수 있음.
-	if (UWorld* World = GetWorld())
-	{
-		World->ServerTravel(TEXT("LobbyMap?listen"));
-	}
 }
 
 void ACH4GameMode::RestartGame()
@@ -330,6 +325,51 @@ void ACH4GameMode::RestartGame()
 	ACH4GameStateBase* GS = GetGameState<ACH4GameStateBase>();
 	if (GS)
 	{
+		// AI 캐릭터 및 플레이어 캐릭터 삭제용 로직
+		TArray<APawn*> PawnsToDestroy;
+
+		for (TActorIterator<APawn> It(GetWorld()); It; ++It)
+		{
+			APawn* Pawn = *It;
+			if (Pawn && Pawn->HasAuthority())
+			{
+				PawnsToDestroy.Add(Pawn);
+			}
+		}
+		for (APawn* Pawn : PawnsToDestroy)
+		{
+			if (Pawn)
+			{
+				AController* Controller = Pawn->GetController();
+				if (Controller)
+				{
+					Controller->UnPossess();
+				}
+				Pawn->Destroy();
+			}
+		}
+		//폰을 수집한 후, 수집된 폰을 전부 삭제하는 파트.
+		//게임 종료 시에만 동작하는 최종 리셋 파트로 혹시 모를 최적화 문제를 위해 보충
+
+	
+
+		TArray<APlayerState*> PlayerStatesCopy = GameState->PlayerArray;
+		for (int32 i = 0; i < PlayerStatesCopy.Num(); ++i)
+		{
+			ACH4PlayerState* TPS = Cast<ACH4PlayerState>(PlayerStatesCopy[i]);
+			if (TPS)
+			{
+				TPS->SetPlayerRole(EPlayerRole::Unassigned);
+			}
+		}
+
+	
+	
+		//게임 모드 내 모든 타이머 초기화
+		GetWorldTimerManager().ClearAllTimersForObject(this);
+		ClearItems();
+		UE_LOG(LogTemp, Warning, TEXT("게임 오버 처리 완료"));
+		
 		// 초기화
 		GS->MatchTime = 600.f;
 		GS->RemainingThieves = 0;
@@ -356,7 +396,10 @@ void ACH4GameMode::RestartGame()
 
 		UE_LOG(LogTemp, Warning, TEXT("=========================="));
 	}
-	
+	if (UWorld* World = GetWorld())
+	{
+		World->ServerTravel(TEXT("LobbyMap?listen"));
+	}
 }
 
 
