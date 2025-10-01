@@ -26,11 +26,19 @@ public:
 	UInputAction* LookAction;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	UInputAction* SprintAction;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+	UInputAction* UseSlot1Action;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+	UInputAction* UseSlot2Action;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
 	TSubclassOf<UCH4UserWidget> HUDWidgetClass;
 	UPROPERTY()
 	UCH4UserWidget* MyHUDWidget;
+
+	UFUNCTION(Client, Reliable)
+	void Client_UpdateMatchData(EWinTeam Winner, const TArray<FPlayerRoleData>& Roles);
+	
 protected:
 	virtual void BeginPlay() override;
 };

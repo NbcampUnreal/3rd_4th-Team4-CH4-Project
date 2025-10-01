@@ -1,137 +1,342 @@
-#include "PlayerController/CH4ChatPlayerController.h"
-#include "GameState/CH4ChatGameState.h"
+Ôªø#include "PlayerController/CH4ChatPlayerController.h"
 #include "PlayerState/CH4ChatPlayerState.h"
+#include "PlayerState/CH4PlayerState.h"
+#include "GameState/CH4GameStateBase.h"
 #include "Gamemode/CH4ChatGameMode.h"
-#include "Net/UnrealNetwork.h"
+#include "GameFramework/GameStateBase.h"
+#include "GameFramework/PlayerState.h"
+#include "OutGameUI/CH4ChatUserWidget.h"
+#include "GameInstance/CH4GameInstance.h"
+#include "Type/MatchTypes.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/Image.h"
-#include "Engine/Engine.h"
+#include "Components/TextBlock.h"
+#include "Components/CheckBox.h"
+#include "Components/GridPanel.h"
 #include "Engine/Texture2D.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
-
+#include "Blueprint/WidgetBlueprintLibrary.h"
 
 ACH4ChatPlayerController::ACH4ChatPlayerController()
 {
-	bReplicates = true;
+    bReplicates = true;
+    PrimaryActorTick.bCanEverTick = true;
 }
 
 void ACH4ChatPlayerController::BeginPlay()
 {
-	Super::BeginPlay();
+    Super::BeginPlay();
+    if (!IsLocalController()) return;
 
-	if (IsLocalController() && LobbyWidgetClass)
-	{
-		UUserWidget* LobbyUI = CreateWidget<UUserWidget>(this, LobbyWidgetClass);
-		if (LobbyUI)
-		{
-			LobbyUI->AddToViewport();
-		}
-	}
+    const FString LevelName = UGameplayStatics::GetCurrentLevelName(this, true);
+    const bool bIsLobby = LevelName.Contains(TEXT("LobbyMap"));
+    UE_LOG(LogTemp, Warning, TEXT("[PC] BeginPlay: Level=%s bIsLobby=%d"), *LevelName, bIsLobby ? 1 : 0);
+
+    // ShowResultScreen(false);
+    // return;
+
+    if (bIsLobby)
+    {
+        bShowMouseCursor = true;
+        FInputModeGameAndUI Mode;
+        Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+        Mode.SetHideCursorDuringCapture(false);
+        SetInputMode(Mode);
+
+        if (UCH4GameInstance* GI = GetGameInstance<UCH4GameInstance>())
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[PC] GI on Lobby: LastMatchState=%d  FinalWinner=%d  Roles.Num=%d"),
+                (int32)GI->LastMatchState, (int32)GI->FinalWinner, GI->LastRoles.Num());
+
+            if (GI->LastMatchState == EMatchTypes::GameOver)
+            {
+                bool bIsWin = false;
+
+                const EWinTeam WinTeam = GI->FinalWinner;
+                UE_LOG(LogTemp, Warning, TEXT("[PC] GameOver detected. WinTeam=%d"), (int32)WinTeam);
+
+                if (WinTeam != EWinTeam::None && PlayerState)
+                {
+                    const FString Key = PlayerState->GetPlayerName();
+                    UE_LOG(LogTemp, Warning, TEXT("[PC] MyKey=%s (lookup in LastRoles)"), *Key);
+
+                    if (const EPlayerRole* FoundRole = GI->LastRoles.Find(Key))
+                    {
+                        EWinTeam MyTeam = EWinTeam::None;
+                        switch (*FoundRole)
+                        {
+                        case EPlayerRole::Police: MyTeam = EWinTeam::Police; break;
+                        case EPlayerRole::Thief:  MyTeam = EWinTeam::Thief;  break;
+                        default:                  MyTeam = EWinTeam::None;   break;
+                        }
+                        bIsWin = (MyTeam == WinTeam);
+                        UE_LOG(LogTemp, Warning, TEXT("[PC] Role found: %d -> MyTeam=%d  bIsWin=%d"),
+                            (int32)(*FoundRole), (int32)MyTeam, bIsWin ? 1 : 0);
+                    }
+                    else
+                    {
+                        UE_LOG(LogTemp, Error, TEXT("[PC] Role NOT found for key '%s' (Roles.Num=%d). Show UI with bIsWin=%d"),
+                            *Key, GI->LastRoles.Num(), bIsWin ? 1 : 0);
+                    }
+                }
+                else
+                {
+                    if (WinTeam == EWinTeam::None)
+                    {
+                        UE_LOG(LogTemp, Error, TEXT("[PC] WinTeam==None. Show UI with bIsWin=%d"), bIsWin ? 1 : 0);
+                    }
+                    else if (!PlayerState)
+                    {
+                        UE_LOG(LogTemp, Error, TEXT("[PC] PlayerState NULL. Show UI with bIsWin=%d"), bIsWin ? 1 : 0);
+                    }
+                }
+
+                UE_LOG(LogTemp, Warning, TEXT("[PC] ShowResultScreen(bIsWin=%d) -> call"), bIsWin ? 1 : 0);
+                ShowResultScreen(bIsWin);
+                return;
+            }
+            else
+            {
+                UE_LOG(LogTemp, Warning, TEXT("[PC] LastMatchState != GameOver -> build Lobby UI"));
+            }
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("[PC] GameInstance NOT found on Lobby"));
+        }
+
+        if (LobbyWidgetClass)
+        {
+            if (UCH4ChatUserWidget* LobbyUI = CreateWidget<UCH4ChatUserWidget>(this, LobbyWidgetClass))
+            {
+                LobbyUI->AddToViewport();
+
+                FInputModeGameAndUI Mode2;
+                Mode2.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+                Mode2.SetHideCursorDuringCapture(false);
+                Mode2.SetWidgetToFocus(LobbyUI->TakeWidget());
+                SetInputMode(Mode2);
+            }
+            else
+            {
+                UE_LOG(LogTemp, Error, TEXT("[PC] CreateWidget(LobbyWidgetClass) FAILED"));
+            }
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("[PC] LobbyWidgetClass NOT set on controller"));
+        }
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[PC] In-Game BeginPlay"));
+        bShowMouseCursor = false;
+        FInputModeGameOnly Mode;
+        SetInputMode(Mode);
+    }
 }
 
-// º≠πˆ RPC ¿Ø»øº∫ ∞ÀªÁ
-bool ACH4ChatPlayerController::Server_SendChatMessage_Validate(const FString& Message)
+// Ï§ÄÎπÑ ÏÉÅÌÉú
+void ACH4ChatPlayerController::SetReady(bool bNewReady)
 {
-	if (Message.Len() == 0) return false;
-	if (Message.Len() > 512) return false;
-	return true;
+    if (IsLocalController())
+        Server_SetReady(bNewReady);
 }
 
-// º≠πˆ RPC ±∏«ˆ
-void ACH4ChatPlayerController::Server_SendChatMessage_Implementation(const FString& Message)
-{
-	// «√∑π¿ÃæÓ ¿Ã∏ß ∞°¡Æø¿±‚
-	FString SenderName = TEXT("Unknown");
-	ACH4ChatPlayerState* PS = GetPlayerState<ACH4ChatPlayerState>();
-	if (PS)
-	{
-		SenderName = PS->GetPlayerName();
-	}
-
-	// GameStateø° ¿¸¥ﬁ
-	ACH4ChatGameState* GS = GetWorld() ? GetWorld()->GetGameState<ACH4ChatGameState>() : nullptr;
-	if (GS)
-	{
-		GS->Multicast_BroadcastChat(SenderName, Message);
-	}
-}
-
-// ≈¨∂Û¿Ãæ∆Æø°º≠ ∏ﬁΩ√¡ˆ ºˆΩ≈«ﬂ¿ª ∂ß Ω««‡
-void ACH4ChatPlayerController::Client_ReceiveChatMessage_Implementation(const FString& SenderPlayerName, const FString& Message)
-{
-	OnChatMessageReceived.Broadcast(SenderPlayerName, Message);
-	DisplayChatLocally(SenderPlayerName, Message);
-}
-
-void ACH4ChatPlayerController::DisplayChatLocally(const FString& Sender, const FString& Message)
-{
-	if (GEngine && IsLocalController())
-	{
-		const FString Full = FString::Printf(TEXT("%s: %s"), *Sender, *Message);
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::White, Full);
-	}
-}
-
-// ∫Ì∑Á«¡∏∞∆Æø°º≠ »£√‚«“ ºˆ ¿÷¥¬ «‘ºˆ
-void ACH4ChatPlayerController::SendChatMessage(const FString& Message)
-{
-	if (IsLocalController() && !Message.IsEmpty())
-	{
-		Server_SendChatMessage(Message);
-	}
-}
-
-// ¡ÿ∫Ò ªÛ≈¬ »£√‚
+// ÏÑúÎ≤ÑÏóêÏÑú Ï§ÄÎπÑ ÏÉÅÌÉú ÌôïÏù∏
 void ACH4ChatPlayerController::Server_SetReady_Implementation(bool bNewReady)
 {
-	if (ACH4ChatPlayerState* PS = GetPlayerState<ACH4ChatPlayerState>())
-	{
-		PS->ServerSetReady(bNewReady);
-	}
+    if (ACH4ChatPlayerState* PS = GetPlayerState<ACH4ChatPlayerState>())
+        PS->ServerSetReady(bNewReady);
 }
 
-// ≈¨∂Û¿Ãæ∆Æø°º≠ ∞·∞˙ »≠∏È¿ª ∂ÁøÏ¥¬ «‘ºˆ ±∏«ˆ
+// Î°úÎπÑ ÌîåÎ†àÏù¥Ïñ¥ Î¶¨Ïä§Ìä∏ Í∞±Ïã†
+void ACH4ChatPlayerController::RefreshPlayerList_Implementation()
+{
+    // Î°úÎπÑ UI Ï∞æÍ∏∞
+    TArray<UUserWidget*> FoundWidgets;
+    UWidgetBlueprintLibrary::GetAllWidgetsOfClass(this, FoundWidgets, UCH4ChatUserWidget::StaticClass(), false);
+
+    for (UUserWidget* Widget : FoundWidgets)
+    {
+        if (UGridPanel* Grid = Cast<UGridPanel>(Widget->GetWidgetFromName(TEXT("PlayerList"))))
+        {
+            Grid->ClearChildren();
+
+            if (AGameStateBase* GS = GetWorld()->GetGameState())
+            {
+                int32 Index = 0;
+                for (APlayerState* PS : GS->PlayerArray)
+                {
+                    if (ACH4ChatPlayerState* MyPS = Cast<ACH4ChatPlayerState>(PS))
+                    {
+                        MyPS->OnPlayerNameUpdated.AddUniqueDynamic(
+                            this, &ACH4ChatPlayerController::HandleAnyPlayerNameUpdated);
+
+                        MyPS->OnReadyStateChanged.AddUniqueDynamic(
+                            this, &ACH4ChatPlayerController::HandleAnyReadyChanged);
+                    }
+
+                    if (LobbyProfileClass)
+                    {
+                        if (UUserWidget* Profile = CreateWidget<UUserWidget>(this, LobbyProfileClass))
+                        {
+                            if (UTextBlock* NameText = Cast<UTextBlock>(Profile->GetWidgetFromName(TEXT("TextBlock_PlayerName"))))
+                            {
+                                NameText->SetText(FText::FromString(PS->GetPlayerName()));
+                            }
+                            if (UCheckBox* ReadyBox = Cast<UCheckBox>(Profile->GetWidgetFromName(TEXT("CheckBox_Ready"))))
+                            {
+                                if (ACH4ChatPlayerState* MyPS2 = Cast<ACH4ChatPlayerState>(PS))
+                                {
+                                    ReadyBox->SetIsChecked(MyPS2->IsReady());
+                                }
+                            }
+
+                            Grid->AddChildToGrid(Profile, Index, 0);
+                            Index++;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+void ACH4ChatPlayerController::HandleAnyPlayerNameUpdated()
+{
+    RefreshPlayerList();
+}
+
+void ACH4ChatPlayerController::HandleAnyReadyChanged(bool)
+{
+    RefreshPlayerList();
+}
+
 void ACH4ChatPlayerController::ShowResultScreen_Implementation(bool bIsWin)
 {
-	if (ResultScreen == nullptr)
-	{
-		return;
-	}
+    UE_LOG(LogTemp, Warning, TEXT("[PC] ShowResultScreen ENTER (bIsWin=%d)"), bIsWin ? 1 : 0);
 
-	// ∞·∞˙ UI ª˝º∫
-	UUserWidget* ResultUI = CreateWidget<UUserWidget>(this, ResultScreen);
-	if (ResultUI == nullptr)
-	{
-		return;
-	}
+    if (!ResultScreen)
+    {
+        UE_LOG(LogTemp, Error, TEXT("[PC] ResultScreen class NOT set on controller"));
+        return;
+    }
 
-	// »≠∏Èø° «•Ω√
-	ResultUI->AddToViewport();
+    if (UUserWidget* ResultUI = CreateWidget<UUserWidget>(this, ResultScreen))
+    {
+        ResultUI->AddToViewport(1000);
 
-	if (UImage* ResultImage = Cast<UImage>(ResultUI->GetWidgetFromName(TEXT("ResultScreen"))))
-	{
-		UTexture2D* WinTex = LoadObject<UTexture2D>(nullptr, TEXT("/Game/OutGameUI/Win.Win"));
-		UTexture2D* LoseTex = LoadObject<UTexture2D>(nullptr, TEXT("/Game/OutGameUI/Lose.Lose"));
+        if (UImage* ResultImage = Cast<UImage>(ResultUI->GetWidgetFromName(TEXT("ResultScreen"))))
+        {
+            UTexture2D* WinTex = LoadObject<UTexture2D>(nullptr, TEXT("/Game/OutGameUI/Win.Win"));
+            UTexture2D* LoseTex = LoadObject<UTexture2D>(nullptr, TEXT("/Game/OutGameUI/Lose.Lose"));
 
-		if (WinTex && LoseTex)
-		{
-			ResultImage->SetBrushFromTexture(bIsWin ? WinTex : LoseTex);
-		}
-	}
+            if (!WinTex || !LoseTex)
+            {
+                UE_LOG(LogTemp, Error, TEXT("[PC] Result textures NOT found: Win=%p Lose=%p"), WinTex, LoseTex);
+            }
+            else
+            {
+                ResultImage->SetBrushFromTexture(bIsWin ? WinTex : LoseTex);
+                UE_LOG(LogTemp, Warning, TEXT("[PC] Result texture applied: %s"), bIsWin ? TEXT("WIN") : TEXT("LOSE"));
+            }
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("[PC] Image widget named 'ResultScreen' NOT found in Result UI"));
+        }
+
+        bShowMouseCursor = true;
+        FInputModeGameAndUI Mode;
+        Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+        Mode.SetHideCursorDuringCapture(false);
+        Mode.SetWidgetToFocus(ResultUI->TakeWidget());
+        SetInputMode(Mode);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("[PC] CreateWidget(ResultScreen) FAILED"));
+    }
 }
 
-// ∑Œ∫Ò∑Œ µπæ∆∞°±‚
+// ÎßàÏö∞Ïä§ Ìè¨Ïù∏ÌÑ∞ Î°úÎπÑ Ï†ÑÏö©
+void ACH4ChatPlayerController::SetLobbyInput_Implementation()
+{
+    bShowMouseCursor = true;
+
+    FInputModeGameAndUI Mode;
+    Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+    Mode.SetHideCursorDuringCapture(false);
+
+    SetInputMode(Mode);
+}
+
+// ÎßàÏö∞Ïä§ Ìè¨Ïù∏ÌÑ∞ Ïù∏Í≤åÏûÑ Ï†ÑÏö©
+void ACH4ChatPlayerController::SetInGameInput_Implementation()
+{
+    bShowMouseCursor = false;
+
+    FInputModeGameOnly Mode;
+    SetInputMode(Mode);
+}
+
+void ACH4ChatPlayerController::Server_RequestReturnLobby_Implementation()
+{
+    if (HasAuthority())
+    {
+        GetWorld()->ServerTravel(TEXT("/Game/Maps/LobbyMap?listen"));
+    }
+}
+
+// Î°úÎπÑÎ°ú Î≥µÍ∑Ä
 void ACH4ChatPlayerController::ReturnLobby()
 {
-	UGameplayStatics::OpenLevel(this, FName("LobbyMap"));
+    UGameplayStatics::OpenLevel(this, FName("LobbyMap"));
 }
 
-// ∞‘¿” ¡æ∑·
+void ACH4ChatPlayerController::Tick(float DeltaSeconds)
+{
+    Super::Tick(DeltaSeconds);
+    if (!IsLocalController()) return;
+
+    const FString LevelName = UGameplayStatics::GetCurrentLevelName(this, true);
+    const bool bIsLobby = LevelName.Contains(TEXT("LobbyMap"));
+    if (bIsLobby || bCachedResult) return;
+
+    AGameStateBase* GS = GetWorld() ? GetWorld()->GetGameState() : nullptr;
+    if (!GS) return;
+
+    const bool bEnded = GS->HasMatchEnded();
+
+    if (!bPrevMatchEnded && bEnded)
+    {
+        if (UCH4GameInstance* GI = GetGameInstance<UCH4GameInstance>())
+        {
+            GI->LastMatchState = EMatchTypes::GameOver;
+
+            EWinTeam WinTeam = EWinTeam::None;
+            GI->FinalWinner = WinTeam;
+
+            if (APlayerState* PS = PlayerState)
+            {
+                EPlayerRole MyRole = EPlayerRole::Citizen;
+                GI->LastRoles.FindOrAdd(PS->GetPlayerName()) = MyRole;
+            }
+
+            bCachedResult = true;
+        }
+    }
+
+    bPrevMatchEnded = bEnded;
+}
+
+// Í≤åÏûÑ Ï¢ÖÎ£å
 void ACH4ChatPlayerController::ExitGame()
 {
-	UWorld* World = GetWorld();
-	if (!World) return;
-
-	UKismetSystemLibrary::QuitGame(World, this, EQuitPreference::Quit, false);
+    if (UWorld* World = GetWorld())
+    {
+        UKismetSystemLibrary::QuitGame(World, this, EQuitPreference::Quit, false);
+    }
 }

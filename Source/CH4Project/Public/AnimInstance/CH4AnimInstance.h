@@ -21,9 +21,21 @@ public:
     UPROPERTY(BlueprintReadWrite, Category = "Animation")
     float Speed;
 
+    UPROPERTY(BlueprintReadWrite, Category = "Animation")
+    bool bIsStunned = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+    UAnimMontage* DeathMontage;
+
     // 아이템 사용
     UPROPERTY(BlueprintReadWrite, Category = "Animation")
     bool bUsingItem;
 
+    UPROPERTY(BlueprintReadOnly, Category = "State")
+    bool bIsDead;
+
+    UFUNCTION(BlueprintCallable)
+	void PlayDeadAnimation();
+    
     UCH4AnimInstance();
 };

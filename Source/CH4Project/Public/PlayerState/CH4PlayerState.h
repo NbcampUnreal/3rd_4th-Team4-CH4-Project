@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerState.h"
 #include "Type/MatchTypes.h"
+#include "Item/BaseItem.h"
 #include "CH4PlayerState.generated.h"
 
 /**
@@ -19,6 +20,8 @@ class CH4PROJECT_API ACH4PlayerState : public APlayerState
 	GENERATED_BODY()
 public:
 	ACH4PlayerState();
+
+	virtual void BeginPlay() override;
 
 	/** 플레이어 역할 */
 	UPROPERTY(ReplicatedUsing = OnRep_PlayerRole, BlueprintReadOnly)
@@ -61,17 +64,10 @@ public:
 	UFUNCTION(Client, Reliable)
 	void ClientReceiveRole(EPlayerRole NewRole);
 	void ClientReceiveRole_Implementation(EPlayerRole NewRole);
-
-	//플레이어 스테이트에서 인벤토리 관리 : 게임 모드에서 온전히 관리하는 쪽이 안전함.
-	//따라서 핵심은 게임모드에서 구현 후, 플레이어스테이트, 혹은 플레이어 컨트롤러에서 관리 가능하도록 확장성을 확보.
-	UPROPERTY(ReplicatedUsing=OnRep_InventoryUpdated, BlueprintReadOnly)
-	TArray<FName> Inventory;
-
-	void AddItemToInventory(FName ItemID);
-
 	
-	UFUNCTION()
-	void OnRep_InventoryUpdated();
+	UFUNCTION(Client, Reliable)
+	void UpdateKillFeedUI(const FString& KillerName, const FString& VictimName);
+	
 
 protected:
 	

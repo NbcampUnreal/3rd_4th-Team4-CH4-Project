@@ -6,6 +6,7 @@
 
 class UInputAction;
 class AActor;
+class UAnimMontage;
 
 UCLASS()
 class CH4PROJECT_API APoliceCH4Character : public ACH4Character
@@ -38,22 +39,6 @@ protected:
     // 전방 구체 트레이스로 가장 가까운 Pawn 하나
     AActor* FindArrestTarget(float TraceDistance = 220.f, float Radius = 60.f) const;
 
-    /* ================= Item Pickup ================= */
-    // 아이템 액터와 겹침 시작 → 서버 지급 시도
-    UFUNCTION() void OnItemBeginOverlap(AActor* OverlappedActor, AActor* OtherActor);
-
-    // 서버: 아이템 지급, 액터 제거
-    UFUNCTION(Server, Reliable)
-    void ServerPickupItem(AActor* ItemActor);
-
-    // 모두: 아이템 사라지는 연출
-    UFUNCTION(NetMulticast, Unreliable)
-    void MulticastPlayPickupFX(AActor* ItemActor);
-
-    // 클라 전용: “아이템 획득” UI
-    UFUNCTION(Client, Reliable)
-    void ClientShowPickupUI();
-
 protected:
     /* ====== 입력 리소스 ====== */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
@@ -65,5 +50,29 @@ protected:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Arrest")
     float ArrestTraceRadius = 60.f;
+
+    // === Arrest Cooldown (입력 스팸/네트워크 보호) ===
+    UPROPERTY(EditDefaultsOnly, Category = "Arrest|Cooldown")
+    float ArrestCooldown = 1.0f;              // 체포 쿨다운(초)
+
+    FTimerHandle ArrestCooldownTimerHandle_Local; // 로컬(클라) 쿨다운 타이머 핸들 → 내 PC에서 연타 방지
+    FTimerHandle ArrestCooldownTimerHandle_Server; // 서버 쿨다운 타이머 핸들 → 서버로 가는 RPC 스팸 방지
+
+    // 로컬 입력 측 쿨다운(소유 클라 게이트)
+    bool bArrestOnCooldown_Local = false;
+    // 서버 권한 측 쿨다운(서버 게이트)
+    bool bArrestOnCooldown_Server = false;
+
+    // 로컬/서버 각각 쿨다운 시작 헬퍼
+    void StartArrestCooldown_Local();
+    void StartArrestCooldown_Server();
+
+    /* ====== 몽타주 재생 ====== */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Arrest|FX")
+    UAnimMontage* ArrestMontage = nullptr;
+
+    void PlayLocalArrestMontage(); //입력 즉시 로컬 재생(반응성)
+    UFUNCTION(NetMulticast, Unreliable)
+    void MulticastPlayArrestMontage(); //모든 클라 동기화 재생
 };
 

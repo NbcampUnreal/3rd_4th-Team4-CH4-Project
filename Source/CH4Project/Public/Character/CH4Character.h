@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
@@ -10,7 +10,9 @@ class UCameraComponent;
 class UInputMappingContext;
 class UInputAction;
 class UBaseItem;
+class APickUp;
 struct FInputActionValue;
+
 
 UCLASS()
 class CH4PROJECT_API ACH4Character : public ACharacter
@@ -28,70 +30,154 @@ protected:
 
 	void Move(const FInputActionValue& Value);
 	void Look(const FInputActionValue& Value);
-	void Sprint(const FInputActionValue& Value);
 
-	// ¾ÆÀÌÅÛ »ç¿ë°ú °ü·ÃµÈ °¡»ó ÇÔ¼ö
+	// ì•„ì´í…œ ì‚¬ìš© (í´ë¼ì´ì–¸íŠ¸ì—ì„œ í˜¸ì¶œ)
 	UFUNCTION(BlueprintCallable)
-	virtual void UseItemInput();
+	void UseSlot1();
+	UFUNCTION(BlueprintCallable)
+	void UseSlot2();
 
-	// ¼­¹ö¿¡¼­ ¾ÆÀÌÅÛ »ç¿ëÀ» Ã³¸®ÇÏ´Â RPC
+	// ì„œë²„ì—ì„œ ì•„ì´í…œ ì‚¬ìš©ì„ ì²˜ë¦¬í•˜ëŠ” RPC
 	UFUNCTION(Server, Reliable)
-	virtual void ServerUseItem();
+	void ServerUseItem(int32 SlotIndex);
 
-	// ½ÇÁ¦ ¾ÆÀÌÅÛ »ç¿ë Ã³¸®
-	virtual void HandleUseItem(UBaseItem* Item);
+	// ì•„ì´í…œ ì‚¬ìš© ìƒíƒœ ì´ˆê¸°í™”
+	void ResetUsingItem();
+
+	// UI ì—…ë°ì´íŠ¸ (í´ë¼ì´ì–¸íŠ¸ RPC)
+	UFUNCTION(Client, Reliable)
+	void ClientUpdateInventoryUI();
+	void ClientUpdateInventoryUI_Implementation();
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputMappingContext* DefaultMappingContext;
+
+	// ì´ë™
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputAction* MoveAction;
+
+	//ì‹œì  ì „í™˜
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputAction* LookAction;
+
+	// ì í”„
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputAction* JumpAction;
+
+	// ì•„ì´í…œ ì‚¬ìš©
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	class UInputAction* UseSlot1Action;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	class UInputAction* UseSlot2Action;
+
+	// ì¶©ëŒ ì´ë²¤íŠ¸
+	UFUNCTION()
+	void OnOverlapBegin(UPrimitiveComponent* OverlappedComp,
+		AActor* OtherActor,
+		UPrimitiveComponent* OtherComp,
+		int32 OtherBodyIndex,
+		bool bFromSweep,
+		const FHitResult& SweepResult);
+
+	// UI ì—…ë°ì´íŠ¸ ë¸”ë£¨í”„ë¦°íŠ¸ ì´ë²¤íŠ¸
+	UFUNCTION(BlueprintImplementableEvent, Category = "Item|UI")
+	void UpdateHeldItemUI(UBaseItem* NewItem);
+
+	// ì²´í¬ì‹œ ì‚¬ë§ ì• ë‹ˆë©”ì´ì…˜
+	UFUNCTION()
+	void Die();
+
+	UPROPERTY(Replicated, ReplicatedUsing = OnRep_IsDead)
+	bool bIsDead;
+
+	UFUNCTION()
+	void OnRep_IsDead();
+
+	// ì• ë‹ˆë©”ì´ì…˜ ì¸ìŠ¤í„´ìŠ¤ì—ì„œ ì‚¬ìš©í•  ê¸°ì ˆ ìƒíƒœ
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Animation")
+	bool bIsStunned = false;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	class UAnimMontage* StunMontage;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* DieMontage;
+
+	// ì• ë‹ˆë©”ì´ì…˜ì´ ì¬ìƒë˜ë„ë¡ ì§€ì‹œ
+	UFUNCTION()
+	void PlayStunAnimation();
+
+	UFUNCTION()
+	void RemoveCharacterAfterDeath();
+
+	// ì• ë‹ˆë©”ì´ì…˜ì´ ëë‚¬ì„ ë•Œ í˜¸ì¶œ
+	void ResetStunState();
+
+	FTimerHandle DestroyTimerHandle;
+
+
 
 public:
-	// ¾Ö´Ï¸ŞÀÌ¼Ç °ü·Ã
+	// ì• ë‹ˆë©”ì´ì…˜ ê´€ë ¨
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Animation")
 	bool bIsJumping;
 
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Animation")
 	bool bIsRunning;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Animation")
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Animation")
 	float Speed;
 
-	// ¾ÆÀÌÅÛ »ç¿ë ¿©ºÎ(º¹Á¦)
+	// ì•„ì´í…œ ì‚¬ìš© ì—¬ë¶€(ë³µì œ)
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Animation")
 	bool bUsingItem;
 
-	// ÀÌµ¿ ¼Óµµ
+	// ì¸ë²¤í† ë¦¬ (2ì¹¸ ê³ ì •)
+	UPROPERTY(Replicated, VisibleAnywhere, BlueprintReadOnly, Category = "Inventory")
+	TArray<UBaseItem*> Inventory;
+
+	// í˜„ì¬ ì„ íƒëœ ìŠ¬ë¡¯ (0 = ìŠ¬ë¡¯1, 1 = ìŠ¬ë¡¯2)
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Inventory")
+	int32 CurrentSlotIndex = 0;
+
+	// ì„œë²„ì—ì„œë§Œ í˜¸ì¶œ, MaxWalkSpeedë¥¼ ë³€ê²½ ë° í´ë¼ì´ì–¸íŠ¸ì—ê²Œ ë³µì œ
+	UFUNCTION(BlueprintCallable, Category = "Movement")
+	void SetCharacterMaxWalkSpeed(float NewMaxWalkSpeed);
+
+	// ì´ë™ ì†ë„
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement")
-	float WalkSpeed = 300.0f;
+	float WalkSpeed = 500.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement")
 	float RunSpeed = 600.0f;
 
-	// Ä«¸Ş¶ó
+	UPROPERTY(Replicated, ReplicatedUsing = OnRep_MaxWalkSpeed)
+	float CurrentMaxWalkSpeed;
+
+	UFUNCTION()
+	void OnRep_MaxWalkSpeed();
+
+	UFUNCTION(Server, Reliable)
+	void ServerResetMovementSpeed();
+
+	UFUNCTION(BlueprintCallable, Server, Reliable)
+	void ServerPlayStunAnimation();
+
+	// ì¹´ë©”ë¼
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	USpringArmComponent* SpringArmComp;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	UCameraComponent* CameraComp;
 
-protected:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	UInputMappingContext* DefaultMappingContext;
+	// íƒ€ì´ë¨¸ í•¸ë“¤
+	FTimerHandle RunSpeedTimerHandle;
 
-	// ÀÌµ¿
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	UInputAction* MoveAction;
+	UFUNCTION(Server, Reliable)
+	void ServerHandleDeath();
 
-	//½ÃÁ¡ ÀüÈ¯
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	UInputAction* LookAction;
-
-	// Á¡ÇÁ
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	UInputAction* JumpAction;
-
-	// ´Ş¸®±â
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	UInputAction* SprintAction;
-
-	// ¾ÆÀÌÅÛ »ç¿ë
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	class UInputAction* UseItemAction;
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayDeathAnimation();
 
 };

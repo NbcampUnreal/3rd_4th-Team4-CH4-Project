@@ -1,9 +1,11 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerState.h"
 #include "CH4ChatPlayerState.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnReadyStateChanged, bool, bIsReady);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPlayerNameUpdated);
 
 UCLASS()
 class CH4PROJECT_API ACH4ChatPlayerState : public APlayerState
@@ -19,12 +21,20 @@ public:
     UFUNCTION(Server, Reliable, WithValidation)
     void ServerSetReady(bool bNewReady);
 
+    UPROPERTY(BlueprintAssignable, Category = "Lobby")
+    FOnReadyStateChanged OnReadyStateChanged;
+
+    UPROPERTY(BlueprintAssignable, Category = "Lobby")
+    FOnPlayerNameUpdated OnPlayerNameUpdated;
+
 protected:
     UPROPERTY(ReplicatedUsing = OnRep_IsReady, BlueprintReadOnly, Category = "Lobby")
     bool bIsReady = false;
 
     UFUNCTION()
     void OnRep_IsReady();
+
+    virtual void OnRep_PlayerName() override;
 
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 };
