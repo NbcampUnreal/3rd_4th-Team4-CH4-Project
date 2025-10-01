@@ -13,6 +13,7 @@
 #include "Components/TextBlock.h"
 #include "Components/CheckBox.h"
 #include "Components/GridPanel.h"
+#include "Components/Button.h"
 #include "Engine/Texture2D.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
@@ -232,20 +233,29 @@ void ACH4ChatPlayerController::ShowResultScreen_Implementation(bool bIsWin)
         {
             UTexture2D* WinTex = LoadObject<UTexture2D>(nullptr, TEXT("/Game/OutGameUI/Win.Win"));
             UTexture2D* LoseTex = LoadObject<UTexture2D>(nullptr, TEXT("/Game/OutGameUI/Lose.Lose"));
-
-            if (!WinTex || !LoseTex)
-            {
-                UE_LOG(LogTemp, Error, TEXT("[PC] Result textures NOT found: Win=%p Lose=%p"), WinTex, LoseTex);
-            }
-            else
+            if (WinTex && LoseTex)
             {
                 ResultImage->SetBrushFromTexture(bIsWin ? WinTex : LoseTex);
                 UE_LOG(LogTemp, Warning, TEXT("[PC] Result texture applied: %s"), bIsWin ? TEXT("WIN") : TEXT("LOSE"));
+            }
+            else
+            {
+                UE_LOG(LogTemp, Error, TEXT("[PC] Result textures NOT found: Win=%p Lose=%p"), WinTex, LoseTex);
             }
         }
         else
         {
             UE_LOG(LogTemp, Error, TEXT("[PC] Image widget named 'ResultScreen' NOT found in Result UI"));
+        }
+
+        if (UButton* ReturnBtn = Cast<UButton>(ResultUI->GetWidgetFromName(TEXT("ReturnLobby"))))
+        {
+            ReturnBtn->OnClicked.AddUniqueDynamic(this, &ACH4ChatPlayerController::HandleReturnLobbyClicked);
+            UE_LOG(LogTemp, Warning, TEXT("[PC] Return Lobby button BOUND"));
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("[PC] Button named 'ReturnLobby' NOT found in Result UI"));
         }
 
         bShowMouseCursor = true;
@@ -290,12 +300,6 @@ void ACH4ChatPlayerController::Server_RequestReturnLobby_Implementation()
     }
 }
 
-// 로비로 복귀
-void ACH4ChatPlayerController::ReturnLobby()
-{
-    UGameplayStatics::OpenLevel(this, FName("LobbyMap"));
-}
-
 void ACH4ChatPlayerController::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
@@ -330,6 +334,24 @@ void ACH4ChatPlayerController::Tick(float DeltaSeconds)
     }
 
     bPrevMatchEnded = bEnded;
+}
+
+void ACH4ChatPlayerController::HandleReturnLobbyClicked()
+{
+    UE_LOG(LogTemp, Warning, TEXT("[PC] HandleReturnLobbyClicked: ENTER"));
+
+    if (UCH4GameInstance* GI = GetGameInstance<UCH4GameInstance>())
+    {
+        GI->FinalWinner = EWinTeam::None;
+        GI->LastRoles.Empty();
+        GI->LastMatchState = EMatchTypes::WaitingToStart;
+        UE_LOG(LogTemp, Warning, TEXT("[PC] GI reset"));
+    }
+    if (!LobbyServerURL.IsEmpty())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[PC] ClientTravel -> %s"), *LobbyServerURL);
+        ClientTravel(*LobbyServerURL, ETravelType::TRAVEL_Absolute);
+    }
 }
 
 // 게임 종료

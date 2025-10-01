@@ -63,7 +63,6 @@ public:
 	/** 클라이언트 RPC: 서버에서 역할 배정 직후 즉시 알림 */
 	UFUNCTION(Client, Reliable)
 	void ClientReceiveRole(EPlayerRole NewRole);
-	void ClientReceiveRole_Implementation(EPlayerRole NewRole);
 	
 	UFUNCTION(Client, Reliable)
 	void UpdateKillFeedUI(const FString& KillerName, const FString& VictimName);
