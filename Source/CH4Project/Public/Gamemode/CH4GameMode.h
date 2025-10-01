@@ -14,7 +14,6 @@ class ACH4GameStateBase;
 class APawn;
 class UBaseItem;
 
-
 /*
 
  */
@@ -133,7 +132,6 @@ protected:
 	//시작 시 호출하는 아이템 스폰 타이머
 	void StartItemSpawnTimer();
 
-	bool bGameOverHandled = false;
-
+	
 };
 

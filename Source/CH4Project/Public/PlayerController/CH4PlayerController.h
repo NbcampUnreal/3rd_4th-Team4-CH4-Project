@@ -35,9 +35,6 @@ public:
 	TSubclassOf<UCH4UserWidget> HUDWidgetClass;
 	UPROPERTY()
 	UCH4UserWidget* MyHUDWidget;
-
-	UFUNCTION(Client, Reliable)
-	void Client_UpdateMatchData(EWinTeam Winner, const TArray<FPlayerRoleData>& Roles);
 	
 protected:
 	virtual void BeginPlay() override;

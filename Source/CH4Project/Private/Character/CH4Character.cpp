@@ -61,7 +61,7 @@ void ACH4Character::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (ACH4PlayerController* PlayerController = Cast<ACH4PlayerController>(Controller))
+	if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
 	{
 		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
 		{
@@ -83,6 +83,11 @@ void ACH4Character::Tick(float DeltaTime)
 		Speed = GetVelocity().Size();
 		bIsJumping = GetCharacterMovement()->IsFalling();
 	}
+
+	//if (HasAuthority()) // 서버에서만 실행
+	//{
+	//	bIsRunning = (GetVelocity().Size() > WalkSpeed + 10.0f);
+	//}
 
 	// 애니메이션 인스턴스에 복제된 변수 및 로컬 변수 전달
 	if (UCH4AnimInstance* AnimInst = Cast<UCH4AnimInstance>(GetMesh()->GetAnimInstance()))
@@ -145,26 +150,12 @@ void ACH4Character::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLif
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME_CONDITION(ACH4Character, bIsJumping, COND_SkipOwner);
 	DOREPLIFETIME(ACH4Character, bIsRunning);
-	//DOREPLIFETIME(ACH4Character, Inventory);
+	DOREPLIFETIME(ACH4Character, Inventory);
 	DOREPLIFETIME(ACH4Character, CurrentMaxWalkSpeed);
 	DOREPLIFETIME(ACH4Character, Speed);
 	DOREPLIFETIME(ACH4Character, bIsDead);
 	DOREPLIFETIME(ACH4Character, bIsStunned);
 }
-
-//void ACH4Character::OnRep_Inventory()
-//{
-//	// Inventory 배열에 변경 사항이 생겼을 때 클라이언트에서 호출
-//	if (ACH4PlayerController* MyPC = Cast<ACH4PlayerController>(GetController()))
-//	{
-//		if (MyPC->MyHUDWidget)
-//		{
-//			MyPC->MyHUDWidget->UpdateInventoryUI(Inventory);
-//			UE_LOG(LogTemp, Warning, TEXT("Client: UI Update SUCCESS."));
-//		}
-//	}
-//	UE_LOG(LogTemp, Warning, TEXT("Client: Inventory Array RepNotify Triggered. Updating UI."));
-//}
 
 void ACH4Character::SetCharacterMaxWalkSpeed(float NewMaxWalkSpeed)
 {
@@ -189,23 +180,6 @@ void ACH4Character::OnRep_MaxWalkSpeed()
 	}
 
 	bIsRunning = (GetCharacterMovement()->MaxWalkSpeed > WalkSpeed + 10.0f);
-}
-
-void ACH4Character::ClientAddItem_Implementation(FName ItemName)
-{
-	// 서버에서 아이템을 먹었다
-	// 클라이언트에서 인벤토리를 복제받는게 아니라 RPC를 통해 클라이언트가 아이템을 새로 생성한다
-	CreateItem(ItemName);
-
-	if (ACH4PlayerController* MyPC = Cast<ACH4PlayerController>(GetController()))
-	{
-		if (MyPC->MyHUDWidget)
-		{
-			MyPC->MyHUDWidget->UpdateInventoryUI(Inventory);
-			UE_LOG(LogTemp, Warning, TEXT("Client: UI Update SUCCESS."));
-		}
-	}
-	UE_LOG(LogTemp, Warning, TEXT("Client: Inventory Array RepNotify Triggered. Updating UI."));
 }
 
 void ACH4Character::ServerHandleDeath_Implementation()
@@ -259,7 +233,7 @@ void ACH4Character::OnOverlapBegin(UPrimitiveComponent* OverlappedComp,
 		return;
 	}
 
-	if (OtherActor->ActorHasTag("Trap"))
+	if (OtherActor->ActorHasTag("Trap")) // 태그 추가 요청
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Hit a trap Character stunned."));
 		ServerPlayStunAnimation(); // 서버에서 기절 애니메이션 재생
@@ -300,13 +274,13 @@ void ACH4Character::OnOverlapBegin(UPrimitiveComponent* OverlappedComp,
 						Inventory[i] = NewItem;
 						UE_LOG(LogTemp, Warning, TEXT("Added item '%s' to inventory slot %d"), *NewItem->GetClass()->GetName(), i);
 
-						// ClientUpdateInventoryUI(); // 클라이언트 RPC 호출
-						ClientAddItem(NewItem->GetClass()->GetFName());
+						// UI 갱신을 위해 클라이언트로 RPC 호출
+						ClientUpdateInventoryUI();
 
+						// 아이템을 주웠으면 줍는 아이템 액터 파괴
 						PickUpActor->Destroy();
 						UE_LOG(LogTemp, Warning, TEXT("Destroyed the PickUp actor in the world"));
-
-						return; // 아이템 획득 및 처리 완료
+						return;
 					}
 				}
 
@@ -321,12 +295,16 @@ void ACH4Character::OnOverlapBegin(UPrimitiveComponent* OverlappedComp,
 // 인벤토리 UI 업데이트 클라이언트 RPC
 void ACH4Character::ClientUpdateInventoryUI_Implementation()
 {
-	if (ACH4PlayerController* MyPC = Cast<ACH4PlayerController>(GetController()))
+	//UpdateHeldItemUI(Inventory.IsValidIndex(0) ? Inventory[0] : nullptr);
+	if (APlayerController* PC = Cast<APlayerController>(GetOwner()))
 	{
-		if (MyPC->MyHUDWidget)
+		if (ACH4PlayerController* MyPC = Cast<ACH4PlayerController>(PC))
 		{
-			MyPC->MyHUDWidget->UpdateInventoryUI(Inventory);
-			UE_LOG(LogTemp, Warning, TEXT("Client: UI Update SUCCESS."));
+			if (MyPC->MyHUDWidget)
+			{
+				// 빌드 오류때문에 주석 처리
+				MyPC->MyHUDWidget->UpdateInventoryUI(Inventory);
+			}
 		}
 	}
 }
@@ -338,14 +316,6 @@ void ACH4Character::UseSlot1()
 	if (IsLocallyControlled())
 	{
 		ServerUseItem(0);
-		Inventory[0] = nullptr;
-		if (ACH4PlayerController* MyPC = Cast<ACH4PlayerController>(GetController()))
-		{
-			if (MyPC->MyHUDWidget)
-			{
-				MyPC->MyHUDWidget->UpdateInventoryUI(Inventory);
-			}
-		}
 	}
 }
 
@@ -355,14 +325,6 @@ void ACH4Character::UseSlot2()
 	if (IsLocallyControlled())
 	{
 		ServerUseItem(1);
-		Inventory[1] = nullptr;
-		if (ACH4PlayerController* MyPC = Cast<ACH4PlayerController>(GetController()))
-		{
-			if (MyPC->MyHUDWidget)
-			{
-				MyPC->MyHUDWidget->UpdateInventoryUI(Inventory);
-			}
-		}
 	}
 }
 
@@ -380,6 +342,7 @@ void ACH4Character::ServerUseItem_Implementation(int32 SlotIndex)
 	// 아이템 사용 상태 변경
 	bUsingItem = true;
 
+	// 아이템의 사용 함수 호출
 	Inventory[SlotIndex]->UseItem(this);
 	UE_LOG(LogTemp, Warning, TEXT("Server: Use items in slot %d"), SlotIndex);
 
@@ -398,6 +361,9 @@ void ACH4Character::ServerResetMovementSpeed_Implementation()
 	// 기본 걷기 속도로 되돌림
 	CurrentMaxWalkSpeed = WalkSpeed;
 	OnRep_MaxWalkSpeed(); // 클라이언트에도 변경된 속도 동기화
+
+	//// 애니메이션 상태를 업데이트하기 위해 bIsRunning 변수를 false로 설정
+	//bIsRunning = false;
 
 	UE_LOG(LogTemp, Warning, TEXT("Server: Speed reset to WalkSpeed"));
 }
@@ -427,7 +393,7 @@ void ACH4Character::OnRep_IsDead()
 	if (bIsDead)
 	{
 		// 입력 막기
-		DisableInput(Cast<ACH4PlayerController>(GetController()));
+		DisableInput(Cast<APlayerController>(GetController()));
 	}
 }
 
@@ -481,4 +447,3 @@ void ACH4Character::ResetStunState()
 	bIsStunned = false; // 복제
 	UE_LOG(LogTemp, Warning, TEXT("Server: Reset Stun State"));
 }
-

@@ -44,6 +44,11 @@ protected:
 	// 아이템 사용 상태 초기화
 	void ResetUsingItem();
 
+	// UI 업데이트 (클라이언트 RPC)
+	UFUNCTION(Client, Reliable)
+	void ClientUpdateInventoryUI();
+	void ClientUpdateInventoryUI_Implementation();
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputMappingContext* DefaultMappingContext;
 
@@ -129,11 +134,8 @@ public:
 	bool bUsingItem;
 
 	// 인벤토리 (2칸 고정)
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory")
+	UPROPERTY(Replicated, VisibleAnywhere, BlueprintReadOnly, Category = "Inventory")
 	TArray<UBaseItem*> Inventory;
-
-	/*UFUNCTION()
-	void OnRep_Inventory();*/
 
 	// 현재 선택된 슬롯 (0 = 슬롯1, 1 = 슬롯2)
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Inventory")
@@ -142,11 +144,6 @@ public:
 	// 서버에서만 호출, MaxWalkSpeed를 변경 및 클라이언트에게 복제
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 	void SetCharacterMaxWalkSpeed(float NewMaxWalkSpeed);
-
-	// UI 업데이트 (클라이언트 RPC)
-	UFUNCTION(Client, Reliable)
-	void ClientUpdateInventoryUI();
-	void ClientUpdateInventoryUI_Implementation();
 
 	// 이동 속도
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement")
@@ -183,9 +180,4 @@ public:
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastPlayDeathAnimation();
 
-	UFUNCTION(Client, Reliable)
-	void ClientAddItem(FName ItemName);
-
-	UFUNCTION(BlueprintImplementableEvent)
-	void CreateItem(FName ItemName);
 };
