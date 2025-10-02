@@ -15,6 +15,7 @@
 #include "Item/BaseItem.h"
 #include "Item/PickUp.h"
 #include "Item/ClockItem.h"
+#include "Item/TrapActor.h"
 
 ACH4Character::ACH4Character()
 {
@@ -31,7 +32,6 @@ ACH4Character::ACH4Character()
 	Speed = 0.f;
 	bIsJumping = false;
 	bIsRunning = false;
-	bUsingItem = false;
 	bUsingItem = false;
 
 	// 인벤토리 크기 2로 설정 (슬롯 2칸)
@@ -145,26 +145,11 @@ void ACH4Character::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLif
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME_CONDITION(ACH4Character, bIsJumping, COND_SkipOwner);
 	DOREPLIFETIME(ACH4Character, bIsRunning);
-	//DOREPLIFETIME(ACH4Character, Inventory);
 	DOREPLIFETIME(ACH4Character, CurrentMaxWalkSpeed);
 	DOREPLIFETIME(ACH4Character, Speed);
 	DOREPLIFETIME(ACH4Character, bIsDead);
 	DOREPLIFETIME(ACH4Character, bIsStunned);
 }
-
-//void ACH4Character::OnRep_Inventory()
-//{
-//	// Inventory 배열에 변경 사항이 생겼을 때 클라이언트에서 호출
-//	if (ACH4PlayerController* MyPC = Cast<ACH4PlayerController>(GetController()))
-//	{
-//		if (MyPC->MyHUDWidget)
-//		{
-//			MyPC->MyHUDWidget->UpdateInventoryUI(Inventory);
-//			UE_LOG(LogTemp, Warning, TEXT("Client: UI Update SUCCESS."));
-//		}
-//	}
-//	UE_LOG(LogTemp, Warning, TEXT("Client: Inventory Array RepNotify Triggered. Updating UI."));
-//}
 
 void ACH4Character::SetCharacterMaxWalkSpeed(float NewMaxWalkSpeed)
 {
@@ -187,8 +172,6 @@ void ACH4Character::OnRep_MaxWalkSpeed()
 		// 클라이언트의 MaxWalkSpeed가 기본 걷기 속도보다 높으면 달리기
 		bIsRunning = (GetCharacterMovement()->MaxWalkSpeed > WalkSpeed + 10.0f);
 	}
-
-	bIsRunning = (GetCharacterMovement()->MaxWalkSpeed > WalkSpeed + 10.0f);
 }
 
 void ACH4Character::ClientAddItem_Implementation(FName ItemName)
@@ -205,7 +188,6 @@ void ACH4Character::ClientAddItem_Implementation(FName ItemName)
 			UE_LOG(LogTemp, Warning, TEXT("Client: UI Update SUCCESS."));
 		}
 	}
-	UE_LOG(LogTemp, Warning, TEXT("Client: Inventory Array RepNotify Triggered. Updating UI."));
 }
 
 void ACH4Character::ServerHandleDeath_Implementation()
@@ -220,18 +202,19 @@ void ACH4Character::MulticastPlayDeathAnimation_Implementation()
 		if (DieMontage)
 		{
 			float MontageDuration = AnimInst->Montage_Play(DieMontage);
+			float DestroyTime = MontageDuration * 0.9f;
 
 			GetWorldTimerManager().SetTimer(
 				DestroyTimerHandle,
 				this,
 				&ACH4Character::RemoveCharacterAfterDeath,
-				MontageDuration, // 애니메이션 재생 시간
+				DestroyTime,
 				false
 			);
 		}
 		else
 		{
-			RemoveCharacterAfterDeath(); // 몽타주가 없으면 바로 삭제
+			RemoveCharacterAfterDeath();
 		}
 	}
 	else
@@ -256,6 +239,26 @@ void ACH4Character::OnOverlapBegin(UPrimitiveComponent* OverlappedComp,
 
 	if (!OtherActor)
 	{
+		return;
+	}
+
+	if (ATrapActor* TrapActor = Cast<ATrapActor>(OtherActor)) 
+	{
+		// 설치자 무시 로직 체크
+		if (TrapActor->GetTrapOwner() == this)
+		{
+			float CurrentTime = GetWorld()->GetTimeSeconds();
+			// 무시 시간이 아직 끝나지 않았다면 함수를 종료
+			if (CurrentTime - TrapActor->GetSpawnTime() < TrapActor->GetOwnerIgnoreDuration())
+			{
+				UE_LOG(LogTemp, Warning, TEXT("Character is the trap owner, ignoring trap for now."));
+				return;
+			}
+		}
+
+		// 설치자 무시 로직을 통과 및 설치자가 아니라면 함정에 걸림
+		UE_LOG(LogTemp, Warning, TEXT("Hit a trap Character stunned."));
+		ServerPlayStunAnimation();
 		return;
 	}
 
@@ -447,32 +450,47 @@ void ACH4Character::ServerPlayStunAnimation_Implementation()
 	if (bIsStunned) return;
 
 	bIsStunned = true;
-	PlayStunAnimation(); // 서버 자신에게 애니메이션 재생 시작
 
-	// 애니메이션이 끝나면 상태를 원래대로 돌릴 타이머를 설정
-	const float StunAnimDuration = 2.8f;
-	GetWorldTimerManager().SetTimer(
-		RunSpeedTimerHandle,
-		this,
-		&ACH4Character::ResetStunState,
-		StunAnimDuration,
-		false
-	);
+	// 스턴 애니메이션 재생
+	MulticastPlayStunMontage();
 }
 
-void ACH4Character::PlayStunAnimation()
+void ACH4Character::MulticastPlayStunMontage_Implementation()
 {
-	if (UCH4AnimInstance* AnimInst = Cast<UCH4AnimInstance>(GetMesh()->GetAnimInstance()))
+	if (UAnimInstance* AnimInst = GetMesh()->GetAnimInstance())
 	{
 		if (StunMontage)
 		{
-			AnimInst->Montage_Play(StunMontage);
-			UE_LOG(LogTemp, Warning, TEXT("%s: Play Stun Montage"), *GetName());
+			// 몽타주 재생을 시작하고, 몽타주의 전체 재생 시간을 MontageDuration 변수에 저장
+			float MontageDuration = AnimInst->Montage_Play(StunMontage);
+
+			if (HasAuthority())
+			{
+				GetWorldTimerManager().SetTimer(
+					RunSpeedTimerHandle,
+					this,
+					&ACH4Character::ResetStunState,
+					MontageDuration,
+					false
+				);
+			}
+
+			UE_LOG(LogTemp, Warning, TEXT("%s: Play Stun Sequence. Duration: %f"), *GetName(), MontageDuration);
 		}
 		else
 		{
-			UE_LOG(LogTemp, Warning, TEXT("StunMontage is NULL on %s"), *GetName());
+			// 몽타주가 없으면 서버에서 바로 상태 해제
+			if (HasAuthority())
+			{
+				ResetStunState();
+			}
+			UE_LOG(LogTemp, Warning, TEXT("StunMontage is NULL. Reseting state immediately."), *GetName());
 		}
+	}
+	// AnimInstance가 없는 경우
+	else if (HasAuthority())
+	{
+		ResetStunState();
 	}
 }
 

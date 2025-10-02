@@ -100,8 +100,8 @@ protected:
 	UAnimMontage* DieMontage;
 
 	// 애니메이션이 재생되도록 지시
-	UFUNCTION()
-	void PlayStunAnimation();
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayStunMontage();
 
 	UFUNCTION()
 	void RemoveCharacterAfterDeath();
@@ -131,9 +131,6 @@ public:
 	// 인벤토리 (2칸 고정)
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory")
 	TArray<UBaseItem*> Inventory;
-
-	/*UFUNCTION()
-	void OnRep_Inventory();*/
 
 	// 현재 선택된 슬롯 (0 = 슬롯1, 1 = 슬롯2)
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Inventory")
