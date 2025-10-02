@@ -23,7 +23,13 @@ protected:
 	UStaticMeshComponent* TrapMesh;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Trap")
-	float StunDuration = 3.f;  
+	float StunDuration = 3.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Trap")
+	float OwnerIgnoreDuration = 3.f; 
+
+	AActor* TrapOwner;
+	float SpawnTime;
 
 	virtual void BeginPlay() override;
 
