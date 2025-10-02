@@ -14,6 +14,19 @@ class CH4PROJECT_API ATrapActor : public AActor
 	
 public:	
 	ATrapActor();
+	
+	FORCEINLINE float GetOwnerIgnoreDuration() const
+    	{
+    		return OwnerIgnoreDuration;
+    	}
+    	FORCEINLINE AActor* GetTrapOwner() const
+    	{
+    		return TrapOwner;
+    	}
+    	FORCEINLINE float GetSpawnTime() const
+    	{
+    		return SpawnTime;
+    	}
 
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Trap")
