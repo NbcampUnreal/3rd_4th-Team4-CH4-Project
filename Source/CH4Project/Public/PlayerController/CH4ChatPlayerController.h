@@ -2,7 +2,10 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "GameInstance/CH4GameInstance.h"
+#include "Type/MatchTypes.h"
 #include "CH4ChatPlayerController.generated.h"
+
 
 class UCH4ChatUserWidget;
 
@@ -29,7 +32,7 @@ public:
 
 	// 결과 화면
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
-	TSubclassOf<class UUserWidget> ResultScreen;
+	TSubclassOf<class UCH4ChatResultWidget> ResultScreen;
 
 	// 준비 확인
 	UFUNCTION(BlueprintCallable, Category = "Lobby")
@@ -68,8 +71,20 @@ public:
 	UFUNCTION(Server, Reliable)
 	void Server_RequestReturnLobby();
 
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void ShowResultScreenLocal(bool bIsWin);
+
+	UFUNCTION(Server, Reliable)
+	void Server_RequestMatchResult();
+
+	UFUNCTION(Client, Reliable)
+	void Client_ReceiveMatchResult(EWinTeam Winner, const TArray<FPlayerRoleData>& Roles);
+
 	UFUNCTION()
-	void HandleReturnLobbyClicked();
+	void OnResultReturnToLobbyClicked();
+
+	UFUNCTION(Server, Reliable)
+	void Server_ConsumeMatchResult();
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Network")
 	FString LobbyServerURL = TEXT("127.0.0.1:7777");
@@ -81,4 +96,8 @@ public:
 private:
 	bool bPrevMatchEnded = false;
 	bool bCachedResult = false;
+	bool bReturningToLobby = false;
+
+	UPROPERTY()
+	UCH4ChatResultWidget* ResultUI = nullptr;
 };
