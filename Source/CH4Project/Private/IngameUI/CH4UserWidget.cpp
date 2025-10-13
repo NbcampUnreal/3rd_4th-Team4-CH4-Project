@@ -48,14 +48,14 @@ void UCH4UserWidget::UpdatePlayerRole(EPlayerRole NewRole)
 
 	FSlateFontInfo FontInfo;
 	FontInfo.FontObject = LoadObject<UObject>(nullptr, TEXT("/Game/IngameUI/Klik-Light_Font.Klik-Light_Font"));
-	FontInfo.Size = 32; // 글자 크기
+	FontInfo.Size = 28; // 글자 크기
 	FeedText->SetFont(FontInfo);
 	
 	// 3) VerticalBox에 추가
 	UVerticalBoxSlot* NewSlot = KillFeedBox->AddChildToVerticalBox(FeedText);
 	if (NewSlot)
 	{
-		NewSlot->SetPadding(FMargin(2.f));
+		NewSlot->SetPadding(FMargin(0.3f));
 		NewSlot->SetHorizontalAlignment(HAlign_Right);
 	}
 	
@@ -63,7 +63,7 @@ void UCH4UserWidget::UpdatePlayerRole(EPlayerRole NewRole)
 	if (UWorld* World = GetWorld())
 	{
 		FTimerHandle TempHandle;
-		World->GetTimerManager().SetTimer(TempHandle,FTimerDelegate::CreateUObject(this, &UCH4UserWidget::RemoveKillEntry, FeedText),3.0f,false);
+		World->GetTimerManager().SetTimer(TempHandle,FTimerDelegate::CreateUObject(this, &UCH4UserWidget::RemoveKillEntry, FeedText),5.0f,false);
 	}
 }
 
@@ -82,14 +82,14 @@ void UCH4UserWidget::AddKillFeedEntry(const FString& KillerName, const FString& 
 
 	FSlateFontInfo FontInfo;
 	FontInfo.FontObject = LoadObject<UObject>(nullptr, TEXT("/Game/IngameUI/Klik-Light_Font.Klik-Light_Font"));
-	FontInfo.Size = 32; // 글자 크기
+	FontInfo.Size = 28; // 글자 크기
 	FeedText->SetFont(FontInfo);
 	
 	// 3) VerticalBox에 추가
 	UVerticalBoxSlot* NewSlot = KillFeedBox->AddChildToVerticalBox(FeedText);
 	if (NewSlot)
 	{
-		NewSlot->SetPadding(FMargin(2.f));
+		NewSlot->SetPadding(FMargin(0.3f));
 		NewSlot->SetHorizontalAlignment(HAlign_Right);
 	}
 	
