@@ -149,6 +149,8 @@ void ACH4Character::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLif
 	DOREPLIFETIME(ACH4Character, Speed);
 	DOREPLIFETIME(ACH4Character, bIsDead);
 	DOREPLIFETIME(ACH4Character, bIsStunned);
+	DOREPLIFETIME(ACH4Character, bUsingItem);
+	DOREPLIFETIME(ACH4Character, CurrentSlotIndex);
 }
 
 void ACH4Character::SetCharacterMaxWalkSpeed(float NewMaxWalkSpeed)
