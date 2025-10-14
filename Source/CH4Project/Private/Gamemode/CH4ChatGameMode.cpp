@@ -63,19 +63,26 @@ void ACH4ChatGameMode::PostLogin(APlayerController* NewPlayer)
 {
     Super::PostLogin(NewPlayer);
 
-    FString PlayerName = TEXT("Unknown");
-
     if (NewPlayer && NewPlayer->PlayerState)
     {
         APlayerState* PS = NewPlayer->PlayerState;
+        const FString CurName = PS->GetPlayerName();
+        const bool bNeedName =
+            CurName.IsEmpty() ||
+            CurName.Equals(TEXT("Player"), ESearchCase::IgnoreCase) ||
+            CurName.Equals(TEXT("PlayerName"), ESearchCase::IgnoreCase);
 
-        int32 PlayerIndex = GameState.Get() ? GameState->PlayerArray.Num() : 0;
-
-        FString NewName = FString::Printf(TEXT("Player_%d"), PlayerIndex);
-        PS->SetPlayerName(NewName);
-
-        PlayerName = PS->GetPlayerName();
-        UE_LOG(LogTemp, Log, TEXT("[Server] %s has joined the game"), *PlayerName);
+        if (bNeedName)
+        {
+            const int32 PlayerIndex = GameState.Get() ? GameState->PlayerArray.Num() : 0;
+            const FString NewName = FString::Printf(TEXT("Player_%d"), PlayerIndex);
+            PS->SetPlayerName(NewName);
+            UE_LOG(LogTemp, Log, TEXT("[Server][Lobby] Name set: %s"), *NewName);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Log, TEXT("[Server][Lobby] Keep existing name: %s"), *CurName);
+        }
     }
 
     int32 Total = 0, Ready = 0;
@@ -161,7 +168,7 @@ void ACH4ChatGameMode::StartGame()
         }
 
         // 맵 이동
-        World->ServerTravel(TEXT("InGameMap_Prototype"));
+        World->ServerTravel(TEXT("InGameMap"));
     }
 }
 

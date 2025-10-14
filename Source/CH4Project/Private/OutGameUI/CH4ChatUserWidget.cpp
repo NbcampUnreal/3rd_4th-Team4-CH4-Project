@@ -2,6 +2,9 @@
 #include "Components/Button.h"
 #include "PlayerController/CH4ChatPlayerController.h"
 #include "PlayerState/CH4ChatPlayerState.h"
+#include "Blueprint/WidgetTree.h"
+#include "Components/CheckBox.h"
+
 
 void UCH4ChatUserWidget::NativeConstruct()
 {
@@ -11,6 +14,21 @@ void UCH4ChatUserWidget::NativeConstruct()
         ReadyMatch->OnClicked.AddDynamic(this, &UCH4ChatUserWidget::HandleReadyClicked);
     if (GameExit)
         GameExit->OnClicked.AddDynamic(this, &UCH4ChatUserWidget::HandleExitClicked);
+    
+    if (WidgetTree)
+    {
+        TArray<UWidget*> AllWidgets;
+        WidgetTree->GetAllWidgets(AllWidgets);
+
+        for (UWidget* W : AllWidgets)
+        {
+            if (UCheckBox* CB = Cast<UCheckBox>(W))
+            {
+                CB->SetIsEnabled(false);
+                CB->SetRenderOpacity(1.0f);
+            }
+        }
+    }
 }
 
 void UCH4ChatUserWidget::HandleReadyClicked()
