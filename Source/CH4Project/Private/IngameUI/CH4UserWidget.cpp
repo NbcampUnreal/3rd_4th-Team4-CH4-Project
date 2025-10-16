@@ -38,20 +38,21 @@ void UCH4UserWidget::UpdatePlayerRole(EPlayerRole NewRole)
 
 	if (!KillFeedBox) return;
 	
-	// 1) ªı TextBlock ª˝º∫
+	// 1) ÏÉà TextBlock ÏÉùÏÑ±
 	UTextBlock* FeedText = NewObject<UTextBlock>(KillFeedBox);
 	if (!FeedText) return;
 	
-	// 2) «•Ω√«“ ≥ªøÎ
+	// 2) ÌëúÏãúÌï† ÎÇ¥Ïö©
 	FString RoleString = (NewRole == EPlayerRole::Police) ? TEXT("you are Guard") : TEXT("you are Thief");
 	FeedText->SetText(FText::FromString(RoleString));
 
 	FSlateFontInfo FontInfo;
 	FontInfo.FontObject = LoadObject<UObject>(nullptr, TEXT("/Game/IngameUI/Klik-Light_Font.Klik-Light_Font"));
-	FontInfo.Size = 28; // ±€¿⁄ ≈©±‚
+	FontInfo.Size = 28; // Í∏ÄÏûê ÌÅ¨Í∏∞
+
 	FeedText->SetFont(FontInfo);
 	
-	// 3) VerticalBoxø° √ﬂ∞°
+	// 3) VerticalBoxÏóê Ï∂îÍ∞Ä
 	UVerticalBoxSlot* NewSlot = KillFeedBox->AddChildToVerticalBox(FeedText);
 	if (NewSlot)
 	{
@@ -59,7 +60,7 @@ void UCH4UserWidget::UpdatePlayerRole(EPlayerRole NewRole)
 		NewSlot->SetHorizontalAlignment(HAlign_Right);
 	}
 	
-	// 4) 5√  µ⁄ ¿Ã ¡Ÿ∏∏ ªË¡¶
+	// 4) 5Ï¥à Îí§ Ïù¥ Ï§ÑÎßå ÏÇ≠Ï†ú
 	if (UWorld* World = GetWorld())
 	{
 		FTimerHandle TempHandle;
@@ -72,20 +73,21 @@ void UCH4UserWidget::AddKillFeedEntry(const FString& KillerName, const FString& 
 	// UE_LOG(LogTemp, Log, TEXT("KillFeed: %s -> %s"), *KillerName, *VictimName);
 	if (!KillFeedBox) return;
 	
-	// 1) ªı TextBlock ª˝º∫
+	// 1) ÏÉà TextBlock ÏÉùÏÑ±
 	UTextBlock* FeedText = NewObject<UTextBlock>(KillFeedBox);
 	if (!FeedText) return;
 	
-	// 2) «•Ω√«“ ≥ªøÎ
+	// 2) ÌëúÏãúÌï† ÎÇ¥Ïö©
 	FString Log = FString::Printf(TEXT("%s KickOut %s"), *KillerName, *VictimName);
 	FeedText->SetText(FText::FromString(Log));
 
 	FSlateFontInfo FontInfo;
 	FontInfo.FontObject = LoadObject<UObject>(nullptr, TEXT("/Game/IngameUI/Klik-Light_Font.Klik-Light_Font"));
-	FontInfo.Size = 28; // ±€¿⁄ ≈©±‚
+	FontInfo.Size = 28; // Í∏ÄÏûê ÌÅ¨Í∏∞
+
 	FeedText->SetFont(FontInfo);
 	
-	// 3) VerticalBoxø° √ﬂ∞°
+	// 3) VerticalBoxÏóê Ï∂îÍ∞Ä
 	UVerticalBoxSlot* NewSlot = KillFeedBox->AddChildToVerticalBox(FeedText);
 	if (NewSlot)
 	{
@@ -93,7 +95,7 @@ void UCH4UserWidget::AddKillFeedEntry(const FString& KillerName, const FString& 
 		NewSlot->SetHorizontalAlignment(HAlign_Right);
 	}
 	
-	// 4) 5√  µ⁄ ¿Ã ¡Ÿ∏∏ ªË¡¶
+	// 4) 5Ï¥à Îí§ Ïù¥ Ï§ÑÎßå ÏÇ≠Ï†ú
 	if (UWorld* World = GetWorld())
 	{
 		FTimerHandle TempHandle;
@@ -112,7 +114,7 @@ void UCH4UserWidget::UpdateInventoryUI(const TArray<UBaseItem*>& Inventory)
 {
 	if (!SlotImage_0 || !SlotImage_1) return;
 
-	// 0π¯ ΩΩ∑‘
+	// 0Î≤à Ïä¨Î°Ø
 	if (Inventory.IsValidIndex(0) && Inventory[0])
 	{
 		SlotImage_0->SetBrushFromTexture(Inventory[0]->Icon);
@@ -124,7 +126,7 @@ void UCH4UserWidget::UpdateInventoryUI(const TArray<UBaseItem*>& Inventory)
 		SlotImage_0->SetVisibility(ESlateVisibility::Hidden);
 	}
 
-	// 1π¯ ΩΩ∑‘
+	// 1Î≤à Ïä¨Î°Ø
 	if (Inventory.IsValidIndex(1) && Inventory[1])
 	{
 		SlotImage_1->SetBrushFromTexture(Inventory[1]->Icon);
