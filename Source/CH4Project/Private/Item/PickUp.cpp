@@ -64,6 +64,7 @@ void APickUp::OnOverlap(AActor* OverlapActor, AActor* OtherActor)
 		if (ItemClass)
 		{
 			UBaseItem* NewItem = NewObject<UBaseItem>(Character, ItemClass);
+			Destroy();
 		}
 	}
 }

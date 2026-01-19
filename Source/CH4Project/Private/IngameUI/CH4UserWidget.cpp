@@ -38,33 +38,32 @@ void UCH4UserWidget::UpdatePlayerRole(EPlayerRole NewRole)
 
 	if (!KillFeedBox) return;
 	
-	// 1) ÏÉà TextBlock ÏÉùÏÑ±
+	// 1) ªı TextBlock ª˝º∫
 	UTextBlock* FeedText = NewObject<UTextBlock>(KillFeedBox);
 	if (!FeedText) return;
 	
-	// 2) ÌëúÏãúÌï† ÎÇ¥Ïö©
+	// 2) «•Ω√«“ ≥ªøÎ
 	FString RoleString = (NewRole == EPlayerRole::Police) ? TEXT("you are Guard") : TEXT("you are Thief");
 	FeedText->SetText(FText::FromString(RoleString));
 
 	FSlateFontInfo FontInfo;
 	FontInfo.FontObject = LoadObject<UObject>(nullptr, TEXT("/Game/IngameUI/Klik-Light_Font.Klik-Light_Font"));
-	FontInfo.Size = 28; // Í∏ÄÏûê ÌÅ¨Í∏∞
-
+	FontInfo.Size = 32; // ±€¿⁄ ≈©±‚
 	FeedText->SetFont(FontInfo);
 	
-	// 3) VerticalBoxÏóê Ï∂îÍ∞Ä
+	// 3) VerticalBoxø° √ﬂ∞°
 	UVerticalBoxSlot* NewSlot = KillFeedBox->AddChildToVerticalBox(FeedText);
 	if (NewSlot)
 	{
-		NewSlot->SetPadding(FMargin(0.3f));
+		NewSlot->SetPadding(FMargin(2.f));
 		NewSlot->SetHorizontalAlignment(HAlign_Right);
 	}
 	
-	// 4) 5Ï¥à Îí§ Ïù¥ Ï§ÑÎßå ÏÇ≠Ï†ú
+	// 4) 5√  µ⁄ ¿Ã ¡Ÿ∏∏ ªË¡¶
 	if (UWorld* World = GetWorld())
 	{
 		FTimerHandle TempHandle;
-		World->GetTimerManager().SetTimer(TempHandle,FTimerDelegate::CreateUObject(this, &UCH4UserWidget::RemoveKillEntry, FeedText),5.0f,false);
+		World->GetTimerManager().SetTimer(TempHandle,FTimerDelegate::CreateUObject(this, &UCH4UserWidget::RemoveKillEntry, FeedText),3.0f,false);
 	}
 }
 
@@ -73,29 +72,28 @@ void UCH4UserWidget::AddKillFeedEntry(const FString& KillerName, const FString& 
 	// UE_LOG(LogTemp, Log, TEXT("KillFeed: %s -> %s"), *KillerName, *VictimName);
 	if (!KillFeedBox) return;
 	
-	// 1) ÏÉà TextBlock ÏÉùÏÑ±
+	// 1) ªı TextBlock ª˝º∫
 	UTextBlock* FeedText = NewObject<UTextBlock>(KillFeedBox);
 	if (!FeedText) return;
 	
-	// 2) ÌëúÏãúÌï† ÎÇ¥Ïö©
+	// 2) «•Ω√«“ ≥ªøÎ
 	FString Log = FString::Printf(TEXT("%s KickOut %s"), *KillerName, *VictimName);
 	FeedText->SetText(FText::FromString(Log));
 
 	FSlateFontInfo FontInfo;
 	FontInfo.FontObject = LoadObject<UObject>(nullptr, TEXT("/Game/IngameUI/Klik-Light_Font.Klik-Light_Font"));
-	FontInfo.Size = 28; // Í∏ÄÏûê ÌÅ¨Í∏∞
-
+	FontInfo.Size = 32; // ±€¿⁄ ≈©±‚
 	FeedText->SetFont(FontInfo);
 	
-	// 3) VerticalBoxÏóê Ï∂îÍ∞Ä
+	// 3) VerticalBoxø° √ﬂ∞°
 	UVerticalBoxSlot* NewSlot = KillFeedBox->AddChildToVerticalBox(FeedText);
 	if (NewSlot)
 	{
-		NewSlot->SetPadding(FMargin(0.3f));
+		NewSlot->SetPadding(FMargin(2.f));
 		NewSlot->SetHorizontalAlignment(HAlign_Right);
 	}
 	
-	// 4) 5Ï¥à Îí§ Ïù¥ Ï§ÑÎßå ÏÇ≠Ï†ú
+	// 4) 5√  µ⁄ ¿Ã ¡Ÿ∏∏ ªË¡¶
 	if (UWorld* World = GetWorld())
 	{
 		FTimerHandle TempHandle;
@@ -114,7 +112,7 @@ void UCH4UserWidget::UpdateInventoryUI(const TArray<UBaseItem*>& Inventory)
 {
 	if (!SlotImage_0 || !SlotImage_1) return;
 
-	// 0Î≤à Ïä¨Î°Ø
+	// 0π¯ ΩΩ∑‘
 	if (Inventory.IsValidIndex(0) && Inventory[0])
 	{
 		SlotImage_0->SetBrushFromTexture(Inventory[0]->Icon);
@@ -126,7 +124,7 @@ void UCH4UserWidget::UpdateInventoryUI(const TArray<UBaseItem*>& Inventory)
 		SlotImage_0->SetVisibility(ESlateVisibility::Hidden);
 	}
 
-	// 1Î≤à Ïä¨Î°Ø
+	// 1π¯ ΩΩ∑‘
 	if (Inventory.IsValidIndex(1) && Inventory[1])
 	{
 		SlotImage_1->SetBrushFromTexture(Inventory[1]->Icon);

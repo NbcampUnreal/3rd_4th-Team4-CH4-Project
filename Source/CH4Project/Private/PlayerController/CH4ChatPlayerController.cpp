@@ -6,12 +6,9 @@
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerState.h"
 #include "OutGameUI/CH4ChatUserWidget.h"
-#include "OutGameUI/CH4ChatResultWidget.h"
 #include "GameInstance/CH4GameInstance.h"
 #include "Type/MatchTypes.h"
 #include "Blueprint/UserWidget.h"
-#include "Blueprint/WidgetTree.h"
-#include "Components/Widget.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "Components/CheckBox.h"
@@ -35,37 +32,35 @@ void ACH4ChatPlayerController::BeginPlay()
 
     const FString LevelName = UGameplayStatics::GetCurrentLevelName(this, true);
     const bool bIsLobby = LevelName.Contains(TEXT("LobbyMap"));
-    UE_LOG(LogTemp, Warning, TEXT("[PC] BeginPlay: %s  IsLobby=%d  Returning=%d"),
-        *LevelName, bIsLobby ? 1 : 0, bReturningToLobby ? 1 : 0);
+    UE_LOG(LogTemp, Warning, TEXT("[PC] BeginPlay: Level=%s bIsLobby=%d"), *LevelName, bIsLobby ? 1 : 0);
+
+    // ShowResultScreen(false);
+    // return;
 
     if (bIsLobby)
     {
         bShowMouseCursor = true;
+        FInputModeGameAndUI Mode;
+        Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+        Mode.SetHideCursorDuringCapture(false);
+        SetInputMode(Mode);
+
+        if (UCH4GameInstance* GI = GetGameInstance<UCH4GameInstance>())
         {
-            FInputModeGameAndUI Mode;
-            Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-            Mode.SetHideCursorDuringCapture(false);
-            SetInputMode(Mode);
-        }
-        if (bReturningToLobby)
-        {
-            UE_LOG(LogTemp, Warning, TEXT("[PC] ReturningToLobby==true → skip result check/request"));
-        }
-        else
-        {
-            if (UCH4GameInstance* GI = GetGameInstance<UCH4GameInstance>())
+            UE_LOG(LogTemp, Warning, TEXT("[PC] GI on Lobby: LastMatchState=%d  FinalWinner=%d  Roles.Num=%d"),
+                (int32)GI->LastMatchState, (int32)GI->FinalWinner, GI->LastRoles.Num());
+
+            if (GI->LastMatchState == EMatchTypes::GameOver)
             {
-                UE_LOG(LogTemp, Warning, TEXT("[PC] GI on Lobby: LastMatchState=%d FinalWinner=%d Roles=%d"),
-                    (int32)GI->LastMatchState, (int32)GI->FinalWinner, GI->LastRoles.Num());
+                bool bIsWin = false;
 
-                if (GI->LastMatchState == EMatchTypes::GameOver &&
-                    GI->FinalWinner != EWinTeam::None &&
-                    PlayerState)
+                const EWinTeam WinTeam = GI->FinalWinner;
+                UE_LOG(LogTemp, Warning, TEXT("[PC] GameOver detected. WinTeam=%d"), (int32)WinTeam);
+
+                if (WinTeam != EWinTeam::None && PlayerState)
                 {
-                    bool bIsWin = false;
-
-                    const EWinTeam WinTeam = GI->FinalWinner;
-                    const FString  Key = PlayerState->GetPlayerName();
+                    const FString Key = PlayerState->GetPlayerName();
+                    UE_LOG(LogTemp, Warning, TEXT("[PC] MyKey=%s (lookup in LastRoles)"), *Key);
 
                     if (const EPlayerRole* FoundRole = GI->LastRoles.Find(Key))
                     {
@@ -77,25 +72,41 @@ void ACH4ChatPlayerController::BeginPlay()
                         default:                  MyTeam = EWinTeam::None;   break;
                         }
                         bIsWin = (MyTeam == WinTeam);
-                        UE_LOG(LogTemp, Warning, TEXT("[PC] (GI OK) Role=%d -> MyTeam=%d  Win=%d"),
+                        UE_LOG(LogTemp, Warning, TEXT("[PC] Role found: %d -> MyTeam=%d  bIsWin=%d"),
                             (int32)(*FoundRole), (int32)MyTeam, bIsWin ? 1 : 0);
                     }
                     else
                     {
-                        UE_LOG(LogTemp, Error, TEXT("[PC] (GI OK) Role NOT found for '%s'"), *Key);
+                        UE_LOG(LogTemp, Error, TEXT("[PC] Role NOT found for key '%s' (Roles.Num=%d). Show UI with bIsWin=%d"),
+                            *Key, GI->LastRoles.Num(), bIsWin ? 1 : 0);
                     }
-
-                    ShowResultScreenLocal(bIsWin);
-                    return;
                 }
-                UE_LOG(LogTemp, Warning, TEXT("[PC] GI not ready on Lobby -> Server_RequestMatchResult()"));
-                Server_RequestMatchResult();
+                else
+                {
+                    if (WinTeam == EWinTeam::None)
+                    {
+                        UE_LOG(LogTemp, Error, TEXT("[PC] WinTeam==None. Show UI with bIsWin=%d"), bIsWin ? 1 : 0);
+                    }
+                    else if (!PlayerState)
+                    {
+                        UE_LOG(LogTemp, Error, TEXT("[PC] PlayerState NULL. Show UI with bIsWin=%d"), bIsWin ? 1 : 0);
+                    }
+                }
+
+                UE_LOG(LogTemp, Warning, TEXT("[PC] ShowResultScreen(bIsWin=%d) -> call"), bIsWin ? 1 : 0);
+                ShowResultScreen(bIsWin);
+                return;
             }
             else
             {
-                UE_LOG(LogTemp, Error, TEXT("[PC] GameInstance is NULL on Lobby"));
+                UE_LOG(LogTemp, Warning, TEXT("[PC] LastMatchState != GameOver -> build Lobby UI"));
             }
         }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("[PC] GameInstance NOT found on Lobby"));
+        }
+
         if (LobbyWidgetClass)
         {
             if (UCH4ChatUserWidget* LobbyUI = CreateWidget<UCH4ChatUserWidget>(this, LobbyWidgetClass))
@@ -107,8 +118,6 @@ void ACH4ChatPlayerController::BeginPlay()
                 Mode2.SetHideCursorDuringCapture(false);
                 Mode2.SetWidgetToFocus(LobbyUI->TakeWidget());
                 SetInputMode(Mode2);
-
-                UE_LOG(LogTemp, Warning, TEXT("[PC] Lobby UI shown"));
             }
             else
             {
@@ -119,14 +128,14 @@ void ACH4ChatPlayerController::BeginPlay()
         {
             UE_LOG(LogTemp, Error, TEXT("[PC] LobbyWidgetClass NOT set on controller"));
         }
-        return;
     }
-
-    // ==== 인게임 분기 ====
-    UE_LOG(LogTemp, Warning, TEXT("[PC] In-Game BeginPlay"));
-    bShowMouseCursor = false;
-    SetInputMode(FInputModeGameOnly{});
-    bReturningToLobby = false;
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[PC] In-Game BeginPlay"));
+        bShowMouseCursor = false;
+        FInputModeGameOnly Mode;
+        SetInputMode(Mode);
+    }
 }
 
 // 준비 상태
@@ -208,12 +217,7 @@ void ACH4ChatPlayerController::HandleAnyReadyChanged(bool)
 
 void ACH4ChatPlayerController::ShowResultScreen_Implementation(bool bIsWin)
 {
-    ShowResultScreenLocal(bIsWin);
-}
-
-void ACH4ChatPlayerController::ShowResultScreenLocal(bool bIsWin)
-{
-    UE_LOG(LogTemp, Warning, TEXT("[PC] ShowResultScreenLocal ENTER (bIsWin=%d)"), bIsWin ? 1 : 0);
+    UE_LOG(LogTemp, Warning, TEXT("[PC] ShowResultScreen ENTER (bIsWin=%d)"), bIsWin ? 1 : 0);
 
     if (!ResultScreen)
     {
@@ -221,61 +225,49 @@ void ACH4ChatPlayerController::ShowResultScreenLocal(bool bIsWin)
         return;
     }
 
-    if (ResultUI)
+    if (UUserWidget* ResultUI = CreateWidget<UUserWidget>(this, ResultScreen))
     {
-        if (UButton* OldBtn = Cast<UButton>(ResultUI->GetWidgetFromName(TEXT("ReturnLobby"))))
+        ResultUI->AddToViewport(1000);
+
+        if (UImage* ResultImage = Cast<UImage>(ResultUI->GetWidgetFromName(TEXT("ResultScreen"))))
         {
-            OldBtn->OnClicked.Clear();
+            UTexture2D* WinTex = LoadObject<UTexture2D>(nullptr, TEXT("/Game/OutGameUI/Win.Win"));
+            UTexture2D* LoseTex = LoadObject<UTexture2D>(nullptr, TEXT("/Game/OutGameUI/Lose.Lose"));
+            if (WinTex && LoseTex)
+            {
+                ResultImage->SetBrushFromTexture(bIsWin ? WinTex : LoseTex);
+                UE_LOG(LogTemp, Warning, TEXT("[PC] Result texture applied: %s"), bIsWin ? TEXT("WIN") : TEXT("LOSE"));
+            }
+            else
+            {
+                UE_LOG(LogTemp, Error, TEXT("[PC] Result textures NOT found: Win=%p Lose=%p"), WinTex, LoseTex);
+            }
         }
-        ResultUI->RemoveFromParent();
-        ResultUI = nullptr;
-    }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("[PC] Image widget named 'ResultScreen' NOT found in Result UI"));
+        }
 
-    ResultUI = CreateWidget<UCH4ChatResultWidget>(this, ResultScreen);
-    if (!ResultUI)
-    {
-        UE_LOG(LogTemp, Error, TEXT("[PC] CreateWidget(ResultScreen) FAILED"));
-        return;
-    }
+        if (UButton* ReturnBtn = Cast<UButton>(ResultUI->GetWidgetFromName(TEXT("ReturnLobby"))))
+        {
+            ReturnBtn->OnClicked.AddUniqueDynamic(this, &ACH4ChatPlayerController::HandleReturnLobbyClicked);
+            UE_LOG(LogTemp, Warning, TEXT("[PC] Return Lobby button BOUND"));
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("[PC] Button named 'ReturnLobby' NOT found in Result UI"));
+        }
 
-    ResultUI->AddToViewport(1000);
-
-    bShowMouseCursor = true;
-    {
+        bShowMouseCursor = true;
         FInputModeGameAndUI Mode;
         Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
         Mode.SetHideCursorDuringCapture(false);
         Mode.SetWidgetToFocus(ResultUI->TakeWidget());
         SetInputMode(Mode);
     }
-    if (UImage* ResultImage = Cast<UImage>(ResultUI->GetWidgetFromName(TEXT("ResultScreen"))))
-    {
-        UTexture2D* WinTex = LoadObject<UTexture2D>(nullptr, TEXT("/Game/OutGameUI/Win.Win"));
-        UTexture2D* LoseTex = LoadObject<UTexture2D>(nullptr, TEXT("/Game/OutGameUI/Lose.Lose"));
-        if (WinTex && LoseTex)
-        {
-            ResultImage->SetBrushFromTexture(bIsWin ? WinTex : LoseTex);
-            UE_LOG(LogTemp, Warning, TEXT("[PC] Result texture applied: %s"), bIsWin ? TEXT("WIN") : TEXT("LOSE"));
-        }
-        else
-        {
-            UE_LOG(LogTemp, Error, TEXT("[PC] Result textures NOT found"));
-        }
-    }
     else
     {
-        UE_LOG(LogTemp, Error, TEXT("[PC] Image widget named 'ResultScreen' NOT found"));
-    }
-
-    if (UButton* ReturnBtn = Cast<UButton>(ResultUI->GetWidgetFromName(TEXT("ReturnLobby"))))
-    {
-        ReturnBtn->OnClicked.Clear();
-        ReturnBtn->OnClicked.AddDynamic(this, &ACH4ChatPlayerController::OnResultReturnToLobbyClicked);
-        UE_LOG(LogTemp, Warning, TEXT("[PC] Result Return button bound"));
-    }
-    else
-    {
-        UE_LOG(LogTemp, Error, TEXT("[PC] 'ReturnLobby' not found in ResultUI"));
+        UE_LOG(LogTemp, Error, TEXT("[PC] CreateWidget(ResultScreen) FAILED"));
     }
 }
 
@@ -311,165 +303,54 @@ void ACH4ChatPlayerController::Server_RequestReturnLobby_Implementation()
 void ACH4ChatPlayerController::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
-
-    if (!IsLocalController())
-    {
-        return;
-    }
-
-    UWorld* World = GetWorld();
-    if (!World)
-    {
-        return;
-    }
+    if (!IsLocalController()) return;
 
     const FString LevelName = UGameplayStatics::GetCurrentLevelName(this, true);
     const bool bIsLobby = LevelName.Contains(TEXT("LobbyMap"));
-    if (bIsLobby)
-    {
-        bPrevMatchEnded = false;
-        return;
-    }
+    if (bIsLobby || bCachedResult) return;
 
-    AGameStateBase* GS = World->GetGameState();
-    if (!GS)
-    {
-        return;
-    }
+    AGameStateBase* GS = GetWorld() ? GetWorld()->GetGameState() : nullptr;
+    if (!GS) return;
 
     const bool bEnded = GS->HasMatchEnded();
+
     if (!bPrevMatchEnded && bEnded)
     {
-        UE_LOG(LogTemp, Log, TEXT("[PC::Tick] Match ended detected. Waiting for server travel and GI values."));
-        bCachedResult = true;
-    }
-    else if (bPrevMatchEnded && !bEnded)
-    {
-        bCachedResult = false;
+        if (UCH4GameInstance* GI = GetGameInstance<UCH4GameInstance>())
+        {
+            GI->LastMatchState = EMatchTypes::GameOver;
+
+            EWinTeam WinTeam = EWinTeam::None;
+            GI->FinalWinner = WinTeam;
+
+            if (APlayerState* PS = PlayerState)
+            {
+                EPlayerRole MyRole = EPlayerRole::Citizen;
+                GI->LastRoles.FindOrAdd(PS->GetPlayerName()) = MyRole;
+            }
+
+            bCachedResult = true;
+        }
     }
 
     bPrevMatchEnded = bEnded;
 }
 
-void ACH4ChatPlayerController::Server_RequestMatchResult_Implementation()
+void ACH4ChatPlayerController::HandleReturnLobbyClicked()
 {
-    UWorld* World = GetWorld();
-    if (!World) return;
+    UE_LOG(LogTemp, Warning, TEXT("[PC] HandleReturnLobbyClicked: ENTER"));
 
-    UCH4GameInstance* GI = GetGameInstance<UCH4GameInstance>();
-    if (!GI)
-    {
-        UE_LOG(LogTemp, Error, TEXT("[PC][Server] GI nullptr"));
-        return;
-    }
-    EWinTeam Winner = GI->FinalWinner;
-
-    TArray<FPlayerRoleData> RoleArray;
-    RoleArray.Reserve(GI->LastRoles.Num());
-    for (const TPair<FString, EPlayerRole>& KVP : GI->LastRoles)
-    {
-        FPlayerRoleData D;
-        D.PlayerName = KVP.Key;
-        D.Role = KVP.Value;
-        RoleArray.Add(D);
-    }
-
-    UE_LOG(LogTemp, Warning, TEXT("[PC][Server] Send Result: Winner=%d Roles=%d"), (int32)Winner, RoleArray.Num());
-    Client_ReceiveMatchResult(Winner, RoleArray);
-}
-
-void ACH4ChatPlayerController::Client_ReceiveMatchResult_Implementation(EWinTeam Winner, const TArray<FPlayerRoleData>& Roles)
-{
-    if (bReturningToLobby)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[PC][Client] ignore result (returning to lobby)")); return;
-    }
-    UE_LOG(LogTemp, Warning, TEXT("[PC][Client] Receive Result: Winner=%d Roles=%d"), (int32)Winner, Roles.Num());
-
-    if (Winner == EWinTeam::None || Roles.Num() == 0)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[PC][Client] Result ignored (no valid winner or roles). Keep Lobby UI."));
-        return;
-    }
-
-    UCH4GameInstance* GI = GetGameInstance<UCH4GameInstance>();
-    if (!GI)
-    {
-        UE_LOG(LogTemp, Error, TEXT("[PC][Client] GI nullptr"));
-        return;
-    }
-    GI->FinalWinner = Winner;
-    GI->LastMatchState = EMatchTypes::GameOver;
-    GI->LastRoles.Empty();
-    for (const FPlayerRoleData& D : Roles)
-    {
-        GI->LastRoles.Add(D.PlayerName, D.Role);
-    }
-    bool bIsWin = false;
-    if (PlayerState)
-    {
-        const FString Key = PlayerState->GetPlayerName();
-        if (const EPlayerRole* FoundRole = GI->LastRoles.Find(Key))
-        {
-            EWinTeam MyTeam = EWinTeam::None;
-            switch (*FoundRole)
-            {
-            case EPlayerRole::Police: MyTeam = EWinTeam::Police; break;
-            case EPlayerRole::Thief:  MyTeam = EWinTeam::Thief;  break;
-            default:                  MyTeam = EWinTeam::None;   break;
-            }
-            bIsWin = (MyTeam == Winner);
-        }
-    }
-    ShowResultScreenLocal(bIsWin);
-}
-
-void ACH4ChatPlayerController::OnResultReturnToLobbyClicked()
-{
-    UE_LOG(LogTemp, Warning, TEXT("[PC] Return-to-Lobby clicked"));
-
-    if (bReturningToLobby)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[PC] Already returning to lobby. Ignored."));
-        return;
-    }
-    bReturningToLobby = true;
-    Server_ConsumeMatchResult();
     if (UCH4GameInstance* GI = GetGameInstance<UCH4GameInstance>())
     {
-        GI->LastMatchState = EMatchTypes::WaitingToStart;
         GI->FinalWinner = EWinTeam::None;
         GI->LastRoles.Empty();
-        UE_LOG(LogTemp, Warning, TEXT("[PC] GI cleared (client)."));
-    }
-    {
-        TArray<UUserWidget*> AllWidgets;
-        UWidgetBlueprintLibrary::GetAllWidgetsOfClass(this, AllWidgets, UUserWidget::StaticClass(), false);
-        for (UUserWidget* W : AllWidgets)
-        {
-            if (!W) continue;
-            const FString CName = W->GetClass() ? W->GetClass()->GetName() : TEXT("");
-            const FString ObjName = W->GetName();
-            if (CName.Contains(TEXT("Result")) || ObjName.Contains(TEXT("Result")))
-            {
-                W->RemoveFromParent();
-                UE_LOG(LogTemp, Warning, TEXT("[PC] Removed widget: %s (%s)"), *ObjName, *CName);
-            }
-        }
-    }
-    bShowMouseCursor = false;
-    SetInputMode(FInputModeGameOnly{});
-    Server_RequestReturnLobby();
-}
-
-void ACH4ChatPlayerController::Server_ConsumeMatchResult_Implementation()
-{
-    if (UCH4GameInstance* GI = GetGameInstance<UCH4GameInstance>())
-    {
         GI->LastMatchState = EMatchTypes::WaitingToStart;
-        GI->FinalWinner = EWinTeam::None;
-        GI->LastRoles.Empty();
-        UE_LOG(LogTemp, Warning, TEXT("[PC][Server] GI cleared (consume result)."));
+        UE_LOG(LogTemp, Warning, TEXT("[PC] GI reset"));
+    }
+    if (!LobbyServerURL.IsEmpty())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[PC] ClientTravel -> %s"), *LobbyServerURL);
+        ClientTravel(*LobbyServerURL, ETravelType::TRAVEL_Absolute);
     }
 }
 
