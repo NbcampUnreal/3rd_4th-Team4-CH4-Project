@@ -14,5 +14,5 @@ public:
 
 protected:
     UPROPERTY(EditDefaultsOnly, Category = "Item")
-    float TimeToReduce = 5.f;
+    float TimeToReduce = 30.f;
 };

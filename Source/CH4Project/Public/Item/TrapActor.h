@@ -14,6 +14,19 @@ class CH4PROJECT_API ATrapActor : public AActor
 	
 public:	
 	ATrapActor();
+	
+	FORCEINLINE float GetOwnerIgnoreDuration() const
+    	{
+    		return OwnerIgnoreDuration;
+    	}
+    	FORCEINLINE AActor* GetTrapOwner() const
+    	{
+    		return TrapOwner;
+    	}
+    	FORCEINLINE float GetSpawnTime() const
+    	{
+    		return SpawnTime;
+    	}
 
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Trap")
@@ -23,7 +36,13 @@ protected:
 	UStaticMeshComponent* TrapMesh;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Trap")
-	float StunDuration = 3.f;  
+	float StunDuration = 3.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Trap")
+	float OwnerIgnoreDuration = 3.f; 
+
+	AActor* TrapOwner;
+	float SpawnTime;
 
 	virtual void BeginPlay() override;
 
